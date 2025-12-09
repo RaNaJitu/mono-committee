@@ -8,11 +8,18 @@ WORKDIR /app
 # Install OpenSSL and other required libraries for Prisma
 RUN apk add --no-cache openssl libc6-compat
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy package files (package-lock.json is optional)
+COPY package.json ./
+COPY package-lock.json* ./
 
 # Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Use npm ci if package-lock.json exists, otherwise use npm install
+RUN if [ -f package-lock.json ]; then \
+      npm ci --only=production; \
+    else \
+      npm install --only=production --no-package-lock; \
+    fi && \
+    npm cache clean --force
 
 # Stage 2: Build
 FROM node:20-alpine AS build
@@ -22,11 +29,18 @@ WORKDIR /app
 # Install OpenSSL and other required libraries for Prisma
 RUN apk add --no-cache openssl libc6-compat
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy package files (package-lock.json is optional)
+COPY package.json ./
+COPY package-lock.json* ./
 
 # Install all dependencies (including dev dependencies for build)
-RUN npm ci && npm cache clean --force
+# Use npm ci if package-lock.json exists, otherwise use npm install
+RUN if [ -f package-lock.json ]; then \
+      npm ci; \
+    else \
+      npm install --no-package-lock; \
+    fi && \
+    npm cache clean --force
 
 # Copy source code and Prisma schema
 COPY . .

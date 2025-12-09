@@ -1,2 +1,2 @@
-# p636-backend-revamp
-This Repository is for the revamped backend for Project 636
+# Committee Backend
+This Repository is for the Committee Backend

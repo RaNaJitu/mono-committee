@@ -6,12 +6,12 @@ class FastifyWinstonLogger implements FastifyBaseLogger {
   private logger: winston.Logger;
 
   public level: string; // Required by FastifyBaseLogger
-  public msgPrefix?: string; // Required by FastifyBaseLogger
+  public msgPrefix: string; // Required by FastifyBaseLogger
 
   constructor(logger: winston.Logger) {
     this.logger = logger;
     this.level = logger.level || 'info'; // Initialize the logging level
-    this.msgPrefix = undefined; // Winston doesn't use msgPrefix
+    this.msgPrefix = ''; // Winston doesn't use msgPrefix, but Fastify requires it
   }
 
   private formatLog(level: string, objOrMsg: unknown, msg?: string): void {

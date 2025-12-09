@@ -26,7 +26,7 @@ interface ISignJwt {
  */
 export function signJwt(params: ISignJwt): string {
   const { data, expiresIn = JWT_CONFIG.DEFAULT_EXPIRY } = params;
-  const options: SignOptions = { expiresIn: expiresIn as string };
+  const options: any = { expiresIn: expiresIn as string };
 
   return jwt.sign({ data }, config.jwt_secret, options);
 }

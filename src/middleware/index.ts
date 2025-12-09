@@ -1,20 +1,20 @@
 
-import fs from "fs";
+// import fs from "fs";
 import path from "path";
-import { MultipartFile } from "@fastify/multipart";
+// import { MultipartFile } from "@fastify/multipart";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { UnauthorizedException } from "../exception/unauthorized.exception";
 import { fmt } from "../config";
 import { verifyJwt } from "../utils/jwt";
 // import prisma from "../utils/prisma";
 import { prisma } from "../utils/prisma";
-import { CustomException } from "../exception/custom.exception";
-import { getCurrentDateFormatted } from "../utils/common";
+// import { CustomException } from "../exception/custom.exception";
+// import { getCurrentDateFormatted } from "../utils/common";
 import baseLogger from "../utils/logger/winston";
 
 export const uploadDir = path.join(__dirname, "../../uploads");
 
-const allowedExt = [".jpg", ".jpeg", ".png"];
+// const allowedExt = [".jpg", ".jpeg", ".png"];
 
 // if (!fs.existsSync(uploadDir)) {
 //   fs.mkdirSync(uploadDir, { recursive: true });

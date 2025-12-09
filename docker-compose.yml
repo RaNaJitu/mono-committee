@@ -1,0 +1,69 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: committee-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      sh -c "redis-server
+      ${REDIS_PWD:+--requirepass $REDIS_PWD}
+      --appendonly yes"
+    volumes:
+      - redis-data:/data
+    networks:
+      - committee-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: committee-backend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-4000}:4000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-DEVELOPMENT}
+      - PORT=${PORT:-4000}
+      # Host must be 0.0.0.0 in Docker to accept connections from outside container
+      - HOST=0.0.0.0
+      # Use local database URL from .env
+      - DATABASE_URL_RW=${DATABASE_URL_RW:-}
+      - DATABASE_URL=${DATABASE_URL:-}
+      # Redis configuration - connect to Redis service in Docker
+      - REDIS_URL=redis
+      - REDIS_PORT=6379
+      - REDIS_PWD=${REDIS_PWD:-}
+    volumes:
+      # Mount logs directory for persistence
+      - ./logs:/app/logs
+      # Mount uploads directory if needed
+      - ./uploads:/app/uploads
+    networks:
+      - committee-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/healthcheck', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+networks:
+  committee-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
+

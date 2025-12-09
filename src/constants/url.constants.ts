@@ -1,0 +1,28 @@
+export const URL_CONSTANTS = {
+  CS_HOST: "https://central3.satsport248.com",
+  CS_SPORT_API: "/api/get_sport_list",
+  CS_TOURNAMENT_API: "/api/get_tournament_list",
+  CS_MATCH_API: "/api/get_match_list",
+  CS_ACCESS_TOKEN_API: "/api/get_access_token",
+  CS_MARKET_LIST: "/api/get_market_list",
+  CS_BOOKMAKER_LIST: "/api/get_bookmaker_list",
+  CS_FANCY_LIST: "/api/get_fancy_list",
+  CS_IMPORT_MULTI_MARKET:"/api/import_multi_market",
+  CS_IMPORT_MARKET:"/api/import_market",
+  CS_LINE_CENTRAL_ID: "/api/import_multi_market",
+  CS_BOOKMAKER_CENTRAL_ID:"/api/import_bookmaker_market",
+  CS_FANCY_CENTRAL_ID:"/api/import_fancy_market",
+  CS_STREAMING_WIDGET:"/api/get_scoreurl_by_centralid",
+  CS_RESULT_API:"/api/get_result_multiple_market",
+  QT_GAME_LOBBY:"/v1/games/lobby-url",
+  CS_MARKET_STATUS_API:"/api/get_status_multiple_market",
+  CS_LAST_MARKET_RATE_API:"/api/get_last_rate",
+  BETFAIR_GAMES: {
+    HOST: "https://api.games.betfair.com",
+    PING: "/rest/v1/ping",
+    CHANNELS: "/rest/v1/channels",
+    CHANNELS_INFO: "/rest/v1/channels/{channelId}/info",
+    CHANNELS_HISTORY: "/rest/v1/channels/{channelId}/history",
+    CHANNELS_SNAPSHOT: "/rest/v1/channels/{channelId}/snapshot",
+  }
+};

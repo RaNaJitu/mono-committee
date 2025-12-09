@@ -1,0 +1,526 @@
+import { CommitteeStatusEnum, Prisma } from "@prisma/client";
+import { CommitteeStatus, UserRole } from "../../enum/constants";
+import { BadRequestException } from "../../exception/badrequest.exception";
+import { NotFoundException } from "../../exception/notfound.exception";
+import baseLogger from "../../utils/logger/winston";
+import {
+  AuthenticatedUserPayload,
+  RegisterUserRequestBody,
+} from "../auth/auth.types";
+import { RegisterUser, findUserByPhoneNo } from "../auth/auth.services";
+import {
+  AddCommitteeMemberBody,
+  AddCommitteePayload,
+  AddCommitteeRequestBody,
+  CommitteeDetails,
+  CommitteeDrawQuerystring,
+  CommitteeDrawRecord,
+  CommitteeMemberWithDraw,
+  CommitteeSummary,
+  UserWiseDrawPaidBody,
+  UserWiseDrawRecord,
+} from "./committee.type";
+import {
+  CommitteeDetailsRecord,
+  CommitteeDrawRecordRaw,
+  CommitteeMemberWithUserRecord,
+  CommitteeSelectRecord,
+  committeeReadRepository,
+  createCommitteeRecord,
+  findCommitteesByAdmin,
+  findCommitteesForMember,
+  findCommitteeDrawList as findCommitteeDrawListRaw,
+  findCommitteeMembersWithUser,
+  runInTransaction,
+  findCommitteeMembersWithUserAndDraw,
+} from "./committee.repository";
+
+const statusToPrisma: Record<CommitteeStatus, CommitteeStatusEnum> = {
+  [CommitteeStatus.INACTIVE]: CommitteeStatusEnum.INACTIVE,
+  [CommitteeStatus.ACTIVE]: CommitteeStatusEnum.ACTIVE,
+  [CommitteeStatus.COMPLETED]: CommitteeStatusEnum.COMPLETED,
+};
+
+const statusFromPrisma: Record<CommitteeStatusEnum, CommitteeStatus> = {
+  [CommitteeStatusEnum.INACTIVE]: CommitteeStatus.INACTIVE,
+  [CommitteeStatusEnum.ACTIVE]: CommitteeStatus.ACTIVE,
+  [CommitteeStatusEnum.COMPLETED]: CommitteeStatus.COMPLETED,
+};
+
+const ADMIN_ONLY_ERROR = {
+  message: "You are not authorized to perform this action",
+  description: "Only committee admins can execute this operation",
+};
+
+type UserWiseDrawRawRecord = Awaited<
+  ReturnType<typeof committeeReadRepository["upsertUserWiseDraw"]>
+>;
+
+const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>
+  value === null || value === undefined ? 0 : Number(value);
+
+const toOptionalNumber = (
+  value: Prisma.Decimal | number | null | undefined
+): number | undefined =>
+  value === null || value === undefined ? undefined : Number(value);
+
+const mapCommitteeSummary = (
+  record: CommitteeSelectRecord
+): CommitteeSummary => ({
+  id: record.id,
+  committeeName: record.committeeName,
+  committeeAmount: Number(record.committeeAmount),
+  commissionMaxMember: record.commissionMaxMember,
+  committeeStatus: statusFromPrisma[record.committeeStatus],
+  noOfMonths: record.noOfMonths,
+  createdAt: record.createdAt,
+  fineAmount: toOptionalNumber(record.fineAmount),
+  extraDaysForFine: record.extraDaysForFine ?? undefined,
+  startCommitteeDate: record.startCommitteeDate ?? undefined,
+});
+
+const mapCommitteeDetails = (
+  record: CommitteeDetailsRecord
+): CommitteeDetails => ({
+  id: record.id,
+  committeeName: record.committeeName,
+  committeeAmount: Number(record.committeeAmount),
+  commissionMaxMember: record.commissionMaxMember,
+  noOfMonths: record.noOfMonths,
+  createdBy: record.createdBy,
+  fineAmount: toNumber(record.fineAmount),
+  extraDaysForFine: record.extraDaysForFine ?? 0,
+  startCommitteeDate: record.startCommitteeDate ?? null,
+});
+
+const mapCommitteeMemberWithDraw = (
+  record: CommitteeMemberWithUserRecord
+): CommitteeMemberWithDraw => {
+  const latestDraw = record.user.UserWiseDraw[0];
+  return {
+    id: record.id,
+    userId: record.userId,
+    committeeId: record.committeeId,
+    createdAt: record.createdAt,
+    user: {
+      id: record.user.id,
+      name: record.user.name,
+      phoneNo: record.user.phoneNo,
+      email: record.user.email,
+      role: record.user.role,
+      userDrawAmountPaid: latestDraw ? Number(latestDraw.userDrawAmountPaid) : 0,
+      fineAmountPaid: latestDraw ? Number(latestDraw.fineAmountPaid) : 0,
+    },
+  };
+};
+
+const mapCommitteeDrawRecord = (
+  record: CommitteeDrawRecordRaw
+): CommitteeDrawRecord => ({
+  id: record.id,
+  committeeId: record.committeeId,
+  committeeDrawAmount: Number(record.committeeDrawAmount),
+  committeeDrawPaidAmount: Number(record.committeeDrawPaidAmount),
+  committeeDrawMinAmount: Number(record.committeeDrawMinAmount),
+  committeeDrawDate: record.committeeDrawDate,
+  committeeDrawTime: record.committeeDrawTime,
+});
+
+const mapUserWiseDrawRecord = (
+  record: UserWiseDrawRawRecord
+): UserWiseDrawRecord => {
+  if (!record.User) {
+    throw new Error("User relation is required for UserWiseDrawRecord");
+  }
+  return {
+    id: record.id,
+    committeeId: record.committeeId,
+    drawId: record.drawId,
+    userId: record.userId,
+    user: {
+      id: record.User.id,
+      name: record.User.name,
+      phoneNo: record.User.phoneNo,
+      email: record.User.email || "",
+      role: String(record.User.role),
+      userDrawAmountPaid: Number(record.userDrawAmountPaid),
+      fineAmountPaid: Number(record.fineAmountPaid),
+    },
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  };
+};
+
+function assertAdmin(authUser: AuthenticatedUserPayload): void {
+  if (authUser.role !== UserRole.ADMIN) {
+    throw new BadRequestException(ADMIN_ONLY_ERROR);
+  }
+}
+
+function ensureCommitteeIdProvided(committeeId?: number): number {
+  if (!committeeId && committeeId !== 0) {
+    throw new BadRequestException({
+      message: "Committee ID is required",
+      description: "Committee ID is required",
+    });
+  }
+  return Number(committeeId);
+}
+
+function buildRegisterPayload(
+  body: AddCommitteeMemberBody
+): RegisterUserRequestBody {
+  return {
+    email: body.email ?? `${body.phoneNo}@committee.local`,
+    phoneNo: body.phoneNo,
+    password: body.password ?? "admin123",
+    role: UserRole.USER,
+    name: body.name ?? body.phoneNo,
+  };
+}
+
+function buildDrawSchedule(
+  details: CommitteeDetails,
+  committeeId: number
+): Prisma.CommitteeDrawCreateManyInput[] {
+  const payload: Prisma.CommitteeDrawCreateManyInput[] = [];
+  const baseDate = details.startCommitteeDate
+    ? new Date(details.startCommitteeDate)
+    : new Date();
+
+  for (let index = 0; index < details.noOfMonths; index += 1) {
+    const drawDate = new Date(baseDate);
+    drawDate.setMonth(baseDate.getMonth() + index);
+    drawDate.setHours(19, 0, 0, 0);
+
+    payload.push({
+      committeeId,
+      committeeDrawAmount: 0,
+      committeeDrawPaidAmount: 0,
+      committeeDrawMinAmount: Number(
+        (details.committeeAmount / details.commissionMaxMember).toFixed(2)
+      ),
+      committeeDrawDate: drawDate,
+      committeeDrawTime: drawDate,
+    });
+  }
+
+  return payload;
+}
+
+async function getCommitteeDetailsOrThrow(
+  committeeId: number
+): Promise<CommitteeDetails> {
+  const record = await committeeReadRepository.findCommitteeDetails(committeeId);
+  if (!record) {
+    throw new NotFoundException({
+      message: "Committee not found",
+      description: "Committee not found",
+    });
+  }
+  return mapCommitteeDetails(record);
+}
+
+async function calculateFineAmountInternal(
+  committeeDetails: CommitteeDetails,
+  drawId: number
+): Promise<number> {
+  const today = new Date();
+  const draw = await committeeReadRepository.findCommitteeDrawById(drawId);
+
+  if (!draw?.committeeDrawDate) {
+    return 0;
+  }
+
+  const drawDate = new Date(draw.committeeDrawDate);
+  const todayOnly = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
+  const drawDateOnly = new Date(
+    drawDate.getFullYear(),
+    drawDate.getMonth(),
+    drawDate.getDate()
+  );
+
+  const diffTime = todayOnly.getTime() - drawDateOnly.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays > committeeDetails.extraDaysForFine) {
+    return (
+      (diffDays - committeeDetails.extraDaysForFine) * committeeDetails.fineAmount
+    );
+  }
+
+  return 0;
+}
+
+async function calculatePaidAmountByUserInternal(
+  committeeDetails: CommitteeDetails,
+  drawId: number
+): Promise<number> {
+  const draw = await committeeReadRepository.findCommitteeDrawById(drawId);
+
+  if (!draw || draw.committeeId !== committeeDetails.id) {
+    throw new BadRequestException({
+      message: "Draw not found",
+      description: "Unable to locate draw for committee",
+    });
+  }
+
+  const drawDate = new Date(draw.committeeDrawDate);
+  if (drawDate > new Date()) {
+    throw new BadRequestException({
+      message: "Draw not started yet",
+      description: "Draw not started yet",
+    });
+  }
+
+  const totalMembers = await committeeReadRepository.countCommitteeMembers(
+    committeeDetails.id
+  );
+  if (totalMembers === 0) {
+    throw new BadRequestException({
+      message: "No committee members",
+      description: "Committee has no members attached",
+    });
+  }
+
+  const drawAmount =
+    (committeeDetails.committeeAmount - toNumber(draw.committeeDrawAmount)) /
+    totalMembers;
+
+  return drawAmount;
+}
+
+export async function getAllCommitteeList(
+  authUser: AuthenticatedUserPayload
+): Promise<CommitteeSummary[]> {
+  const committees =
+    authUser.role === UserRole.ADMIN
+      ? await findCommitteesByAdmin(Number(authUser.id))
+      : await findCommitteesForMember(Number(authUser.id));
+
+  return committees.map(mapCommitteeSummary);
+}
+
+export async function createCommitteeForAdmin(
+  authUser: AuthenticatedUserPayload,
+  body: AddCommitteeRequestBody
+): Promise<CommitteeSummary> {
+  assertAdmin(authUser);
+
+  const payload: AddCommitteePayload = {
+    committeeName: body.committeeName,
+    committeeAmount: body.committeeAmount,
+    commissionMaxMember: body.commissionMaxMember,
+    noOfMonths: body.noOfMonths,
+    createdBy: Number(authUser.id),
+    updatedBy: Number(authUser.id),
+    fineAmount: body.fineAmount,
+    extraDaysForFine: body.extraDaysForFine,
+    startCommitteeDate: body.startCommitteeDate,
+  };
+
+  const record = await createCommitteeRecord(payload);
+  return mapCommitteeSummary(record);
+}
+
+export async function addCommitteeMemberWithWorkflow(
+  authUser: AuthenticatedUserPayload,
+  body: AddCommitteeMemberBody
+) {
+  assertAdmin(authUser);
+  const committeeId = ensureCommitteeIdProvided(body.committeeId);
+
+  return runInTransaction(async ({ repo, tx }) => {
+    const existingUser = await findUserByPhoneNo(body.phoneNo);
+    const user =
+      existingUser ?? (await RegisterUser(tx, buildRegisterPayload(body)));
+
+    const alreadyMember = await repo.findCommitteeMember(committeeId, user.id);
+    if (alreadyMember) {
+      throw new BadRequestException({
+        message: "User already added to committee Member",
+        description: "User already added to committee Member",
+      });
+    }
+
+    await repo.createCommitteeMember({ committeeId, userId: user.id });
+
+    const committeeRecord = await repo.findCommitteeDetails(committeeId);
+    if (!committeeRecord) {
+      throw new NotFoundException({
+        message: "Committee not found",
+        description: "Committee not found",
+      });
+    }
+
+    const committeeDetails = mapCommitteeDetails(committeeRecord);
+    const committeeMembers = await repo.findCommitteeMembers(committeeId);
+
+    if (committeeDetails.commissionMaxMember < committeeMembers.length) {
+      throw new BadRequestException({
+        message: "Max members reached for this committee",
+        description: "Max members reached for this committee",
+      });
+    }
+
+    if (committeeDetails.commissionMaxMember === committeeMembers.length) {
+      const drawPayload = buildDrawSchedule(committeeDetails, committeeId);
+      baseLogger.info(
+        "Generating %d draws for committee %d",
+        drawPayload.length,
+        committeeId
+      );
+      await repo.createCommitteeDraws(drawPayload);
+      await repo.updateCommitteeStatus(
+        committeeId,
+        statusToPrisma[CommitteeStatus.ACTIVE]
+      );
+    }
+
+    return user;
+  }, { timeout: 10_000 });
+}
+
+export async function getCommitteeMemberList(
+  _authUser: AuthenticatedUserPayload,
+  committeeId?: number
+): Promise<CommitteeMemberWithDraw[]> {
+  const id = ensureCommitteeIdProvided(committeeId);
+  const members = await findCommitteeMembersWithUser(id);
+  return members.map(mapCommitteeMemberWithDraw);
+}
+
+export async function getCommitteeDrawListForUser(
+  _authUser: AuthenticatedUserPayload,
+  committeeId?: number
+): Promise<CommitteeDrawRecord[]> {
+  const id = ensureCommitteeIdProvided(committeeId);
+  const drawList = await findCommitteeDrawListRaw(id);
+  return drawList.map(mapCommitteeDrawRecord);
+}
+
+export async function updateUserWiseDrawPaidAmount(
+  authUser: AuthenticatedUserPayload,
+  payload: UserWiseDrawPaidBody
+): Promise<UserWiseDrawRecord> {
+  assertAdmin(authUser);
+
+  const committeeDetails = await getCommitteeDetailsOrThrow(
+    Number(payload.committeeId)
+  );
+
+  if (committeeDetails.createdBy !== Number(authUser.id)) {
+    throw new NotFoundException({
+      message: "Committee not found",
+      description: "Committee not found",
+    });
+  }
+
+  const fineAmount = await calculateFineAmountInternal(
+    committeeDetails,
+    Number(payload.drawId)
+  );
+  const drawAmount = await calculatePaidAmountByUserInternal(
+    committeeDetails,
+    Number(payload.drawId)
+  );
+
+  const record = await committeeReadRepository.upsertUserWiseDraw({
+    committeeId: Number(payload.committeeId),
+    drawId: Number(payload.drawId),
+    userId: Number(payload.userId),
+    userDrawAmountPaid: Number(drawAmount.toFixed(2)),
+    fineAmountPaid: Number(fineAmount.toFixed(2)),
+  });
+
+  return mapUserWiseDrawRecord(record);
+}
+
+export async function getUserWiseDrawPaidAmount(
+  authUser: AuthenticatedUserPayload,
+  payload: CommitteeDrawQuerystring
+): Promise<UserWiseDrawRecord[]> {
+  assertAdmin(authUser);
+
+  const committeeDetails = await getCommitteeDetailsOrThrow(
+    Number(payload.committeeId)
+  );
+  if (committeeDetails.createdBy !== Number(authUser.id)) {
+    throw new NotFoundException({
+      message: "Committee not found",
+      description: "Committee not found",
+    });
+  }
+
+  const draw = await committeeReadRepository.findCommitteeDrawById(Number(payload.drawId));
+  if (!draw) {
+    throw new NotFoundException({
+      message: "Draw not found",
+      description: "Draw not found",
+    });
+  }
+  if(draw.committeeDrawDate > new Date()) {
+    throw new BadRequestException({
+      message: "Draw not started yet",
+      description: "Draw not started yet",
+    });
+  }
+
+  const records = await findCommitteeMembersWithUserAndDraw(
+    Number(payload.committeeId),
+    Number(payload.drawId)
+  );
+  // Transform CommitteeMember with nested user.UserWiseDraw to UserWiseDrawRecord[]
+  const result: UserWiseDrawRecord[] = [];
+  for (const member of records) {
+    const userWiseDraws = member.user.UserWiseDraw || [];
+    
+    if (userWiseDraws.length === 0) {
+      // If no UserWiseDraw record exists, create one with 0 amounts
+      result.push({
+        id: 0, // Placeholder ID since record doesn't exist
+        committeeId: Number(payload.committeeId),
+        drawId: Number(payload.drawId),
+        userId: member.userId,
+        user: {
+          id: member.user.id,
+          name: member.user.name,
+          phoneNo: member.user.phoneNo,
+          email: member.user.email || "",
+          role: String(member.user.role),
+          userDrawAmountPaid: 0,
+          fineAmountPaid: 0,
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    } else {
+      // Process existing UserWiseDraw records
+      for (const userWiseDraw of userWiseDraws) {
+        result.push({
+          id: userWiseDraw.id,
+          committeeId: userWiseDraw.committeeId,
+          drawId: userWiseDraw.drawId,
+          userId: userWiseDraw.userId,
+          user: {
+            id: member.user.id,
+            name: member.user.name,
+            phoneNo: member.user.phoneNo,
+            email: member.user.email || "",
+            role: String(member.user.role),
+            userDrawAmountPaid: toNumber(userWiseDraw.userDrawAmountPaid),
+            fineAmountPaid: toNumber(userWiseDraw.fineAmountPaid),
+          },
+          createdAt: userWiseDraw.createdAt,
+          updatedAt: userWiseDraw.updatedAt,
+        });
+      }
+    }
+  }
+
+  return result;
+}

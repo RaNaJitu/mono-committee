@@ -1,0 +1,139 @@
+// This is your Prisma schema file for the WhiteLabel service
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "./generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_RW")
+}
+
+enum UserRoleEnum {
+  ADMIN
+  USER
+}
+
+enum CommitteeStatusEnum {
+  INACTIVE   @map("0")
+  ACTIVE     @map("1")
+  COMPLETED  @map("2")
+}
+
+
+model User {
+  id                      Int                   @id @default(autoincrement())
+  name                    String
+  email                   String                @unique
+  phoneNo                 String                @unique
+  password                String
+  role                    UserRoleEnum 
+  status                  Boolean               @default(true)
+  salt                    String
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+
+  Committee               Committee[]
+  CommitteeMember         CommitteeMember[]
+  // CommitteeDraw           CommitteeDraw[]
+  UserWiseDraw            UserWiseDraw[]
+}
+
+
+model Session {
+  id                      Int      @id @default(autoincrement())
+  userId                  Int
+  token                   String?
+  refreshToken            String?
+  ipAddress               String?
+  logType                 String
+  device                  String?
+  browserInfo             String?
+  isSuper                 Boolean?  @default(false)
+  isReadOnly              Boolean?  @default(false)
+  isDemo                  Boolean?  @default(false)
+  expired                 Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  @@index([userId], name: "idxUserId")
+}
+
+model Committee {
+  id                      Int                   @id @default(autoincrement())
+  committeeName           String
+  committeeAmount         Decimal               @db.Decimal(15, 2)
+  commissionMaxMember     Int                   @default(20) 
+  committeeStatus         CommitteeStatusEnum   @default(INACTIVE) // 0 = Inactive, 1 = Active, 2 = Completed
+  noOfMonths              Int
+  startCommitteeDate      DateTime?
+  endCommitteeDate        DateTime?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  createdBy               Int
+  updatedBy               Int
+  extraDaysForFine        Int?                   @default(0)
+  fineAmount              Decimal?               @db.Decimal(15, 2)  @default(10)
+  User                    User                  @relation(fields: [createdBy], references: [id])
+
+  CommitteeMember         CommitteeMember[]
+  CommitteeDraw           CommitteeDraw[]
+  UserWiseDraw            UserWiseDraw[]
+  
+  @@index([createdBy], name: "idxCreatedBy")
+  @@index([updatedBy], name: "idxUpdatedBy")
+}
+
+
+model CommitteeMember {
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  committeeId     Int
+
+  user            User       @relation(fields: [userId], references: [id])
+  committee       Committee  @relation(fields: [committeeId], references: [id])
+
+  createdAt       DateTime   @default(now())
+}
+
+model CommitteeDraw {
+  id                      Int                   @id @default(autoincrement())
+  committeeId             Int
+  committeeDrawMinAmount  Decimal               @db.Decimal(15, 2)
+  committeeDrawAmount     Decimal               @db.Decimal(15, 2)
+  committeeDrawPaidAmount Decimal               @db.Decimal(15, 2)
+  committeeDrawDate       DateTime
+  committeeDrawTime       DateTime
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  // userId                  Int
+  // User                    User                  @relation(fields: [userId], references: [id])
+
+  Committee               Committee             @relation(fields: [committeeId], references: [id])
+
+  UserWiseDraw            UserWiseDraw[]
+  
+  @@index([createdAt], name: "idxCreatedAtCommitteeDraw")
+}
+
+model UserWiseDraw {
+  id                      Int                   @id @default(autoincrement())
+  committeeId             Int
+  drawId                  Int
+  userDrawAmountPaid      Decimal               @db.Decimal(15, 2)  @default(0)
+  fineAmountPaid          Decimal               @db.Decimal(15, 2)  @default(0)
+  userId                  Int
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  User                    User                  @relation(fields: [userId], references: [id])
+
+  Committee               Committee             @relation(fields: [committeeId], references: [id])
+  CommitteeDraw           CommitteeDraw         @relation(fields: [drawId], references: [id])
+
+  @@unique([userId, drawId, committeeId], name: "uniqueUserWiseDraw")
+
+  @@index([drawId], name: "idxDrawId")
+  @@index([userId], name: "idxUserIdUserWiseDraw")
+  @@index([createdAt], name: "idxCreatedAtUserWiseDraw")
+}

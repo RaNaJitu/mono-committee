@@ -63,7 +63,7 @@ export const parseJwt = (token: string): any => {
   try {
     const decoded = jwt.decode(token, { complete: true });
     return decoded;
-  } catch (error) {
+  } catch {
     return null;
   }
 };

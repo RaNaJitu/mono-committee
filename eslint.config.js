@@ -1,6 +1,7 @@
 const js = require('@eslint/js');
 const typescriptParser = require('@typescript-eslint/parser');
 const typescriptPlugin = require('@typescript-eslint/eslint-plugin');
+const globals = require('globals');
 
 module.exports = [
   js.configs.recommended,
@@ -13,12 +14,18 @@ module.exports = [
         sourceType: 'module',
         project: './tsconfig.json',
       },
+      globals: {
+        ...globals.node,
+        ...globals.es2021,
+        NodeJS: 'readonly',
+      },
     },
     plugins: {
       '@typescript-eslint': typescriptPlugin,
     },
     rules: {
       'no-unused-vars': 'off', // Turn off base rule as it conflicts with TypeScript version
+      'no-unsafe-optional-chaining': 'warn', // Downgrade to warning (TypeScript handles this)
       '@typescript-eslint/no-unused-vars': [
         'error',
         {

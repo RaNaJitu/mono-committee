@@ -455,7 +455,7 @@ describe('Auth Validation Schemas', () => {
 
       it('should accept missing phone number (optional field)', () => {
         // Arrange
-        const { phoneNo, ...payload } = createValidRegisterPayload();
+        const { phoneNo: _phoneNo, ...payload } = createValidRegisterPayload();
 
         // Act
         const result = registerUserBodySchema.safeParse(payload);

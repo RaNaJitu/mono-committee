@@ -1,8 +1,8 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 echo "🔍 Running ESLint and TypeScript type check before push..."
 
-npm run lint
-npm run type-check
+# Run lint but only fail on errors (warnings won't block push)
+npm run lint -- --max-warnings=9999 || exit 1
+
+# Run type check
+npm run type-check || exit 1
 

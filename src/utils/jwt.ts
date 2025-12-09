@@ -1,4 +1,4 @@
-import jwt, { JwtPayload, SignOptions } from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import { config, fmt } from "../config";
 import { UnauthorizedException } from "../exception/unauthorized.exception";
 import { JWT_CONFIG } from "../constants/security.constants";

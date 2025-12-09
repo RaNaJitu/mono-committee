@@ -14,6 +14,8 @@ COPY package-lock.json* ./
 
 # Install dependencies
 # Use npm ci if package-lock.json exists, otherwise use npm install
+# Set CI=true to skip husky prepare script in Docker
+ENV CI=true
 RUN if [ -f package-lock.json ]; then \
       npm ci --only=production; \
     else \
@@ -35,6 +37,8 @@ COPY package-lock.json* ./
 
 # Install all dependencies (including dev dependencies for build)
 # Use npm ci if package-lock.json exists, otherwise use npm install
+# CI=true is already set from dependencies stage, but set it again to be safe
+ENV CI=true
 RUN if [ -f package-lock.json ]; then \
       npm ci; \
     else \

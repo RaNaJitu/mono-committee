@@ -143,29 +143,29 @@ app.setErrorHandler((error, request, reply) => {
 
 async function main() {
   // Connect to Redis (only if client is initialized)
-  if (redisClient) {
-    try {
-      // Check if already connected
-      if (!redisClient.isOpen) {
-        baseLogger.info('Connecting to Redis...');
-        await redisClient.connect();
-        baseLogger.info("Connected to Redis successfully");
-      } else {
-        baseLogger.info("Redis already connected");
-      }
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      baseLogger.error("Could not connect to Redis", { 
-        error: errorMessage,
-        host: process.env.REDIS_URL || 'localhost',
-        port: process.env.REDIS_PORT || 6379,
-      });
-      // Don't block server startup if Redis fails - it's used for rate limiting and caching
-      baseLogger.warn("Server will continue without Redis (rate limiting may not work)");
-    }
-  } else {
-    baseLogger.warn("Redis client not initialized - rate limiting may not work");
-  }
+  // if (redisClient) {
+  //   try {
+  //     // Check if already connected
+  //     if (!redisClient.isOpen) {
+  //       baseLogger.info('Connecting to Redis...');
+  //       await redisClient.connect();
+  //       baseLogger.info("Connected to Redis successfully");
+  //     } else {
+  //       baseLogger.info("Redis already connected");
+  //     }
+  //   } catch (error: unknown) {
+  //     const errorMessage = error instanceof Error ? error.message : String(error);
+  //     baseLogger.error("Could not connect to Redis", { 
+  //       error: errorMessage,
+  //       host: process.env.REDIS_URL || 'localhost',
+  //       port: process.env.REDIS_PORT || 6379,
+  //     });
+  //     // Don't block server startup if Redis fails - it's used for rate limiting and caching
+  //     baseLogger.warn("Server will continue without Redis (rate limiting may not work)");
+  //   }
+  // } else {
+  //   baseLogger.warn("Redis client not initialized - rate limiting may not work");
+  // }
 
   const PORT = Number(process.env.PORT) || NETWORK.DEFAULT_PORT;
   const HOST = process.env.HOST || NETWORK.DEFAULT_HOST;

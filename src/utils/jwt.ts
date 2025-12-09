@@ -1,4 +1,4 @@
-import jwt, { JwtPayload } from "jsonwebtoken";
+import jwt, { JwtPayload, SignOptions } from "jsonwebtoken";
 import { config, fmt } from "../config";
 import { UnauthorizedException } from "../exception/unauthorized.exception";
 import { JWT_CONFIG } from "../constants/security.constants";
@@ -26,12 +26,9 @@ interface ISignJwt {
  */
 export function signJwt(params: ISignJwt): string {
   const { data, expiresIn = JWT_CONFIG.DEFAULT_EXPIRY } = params;
+  const options: SignOptions = { expiresIn };
 
-  if (expiresIn) {
-    return jwt.sign({ data }, config.jwt_secret, { expiresIn });
-  }
-
-  return jwt.sign({ data }, config.jwt_secret);
+  return jwt.sign({ data }, config.jwt_secret, options);
 }
 
 /**

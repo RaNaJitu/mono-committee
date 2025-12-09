@@ -86,9 +86,13 @@ COPY --from=build --chown=nodejs:nodejs /app/node_modules/.prisma ./node_modules
 # Copy .env file (will be overridden by docker-compose if needed)
 COPY --chown=nodejs:nodejs .env* ./
 
-# Copy entrypoint script
-COPY --chown=nodejs:nodejs docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+# Copy entrypoint script and fix line endings (CRLF to LF) for Linux compatibility
+# Use sed to convert Windows line endings to Unix line endings
+COPY docker-entrypoint.sh /tmp/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /tmp/docker-entrypoint.sh && \
+    chmod +x /tmp/docker-entrypoint.sh && \
+    mv /tmp/docker-entrypoint.sh /app/docker-entrypoint.sh && \
+    chown nodejs:nodejs /app/docker-entrypoint.sh
 
 # Create logs directory
 RUN mkdir -p logs && chown -R nodejs:nodejs logs

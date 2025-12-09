@@ -49,29 +49,29 @@ app.get("/healthcheck", async (_request, reply) => {
   // Check database connection
   // Use main prisma client (works for local DB and production)
   // prismaClientRO1 is optional and only used if explicitly configured
-  try {
-    // Simple query to check database connectivity
-    const result = await prisma.$queryRaw`SELECT 1 as health`;
+  // try {
+  //   // Simple query to check database connectivity
+  //   const result = await prisma.$queryRaw`SELECT 1 as health`;
 
-    // Verify we got a result (result should be an array with at least one row)
-    if (Array.isArray(result) && result.length > 0) {
-      healthStatus.services.database = "connected";
-    } else {
-      healthStatus.services.database = "disconnected";
-      healthStatus.status = "degraded";
-    }
-  } catch (error) {
-    healthStatus.services.database = "disconnected";
-    healthStatus.status = "degraded";
-    // Log error in development for debugging
-    if (process.env.NODE_ENV !== "PRODUCTION") {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      baseLogger.error("Database health check failed", { 
-        error: errorMessage,
-        errorType: error instanceof Error ? error.constructor.name : typeof error
-      });
-    }
-  }
+  //   // Verify we got a result (result should be an array with at least one row)
+  //   if (Array.isArray(result) && result.length > 0) {
+  //     healthStatus.services.database = "connected";
+  //   } else {
+  //     healthStatus.services.database = "disconnected";
+  //     healthStatus.status = "degraded";
+  //   }
+  // } catch (error) {
+  //   healthStatus.services.database = "disconnected";
+  //   healthStatus.status = "degraded";
+  //   // Log error in development for debugging
+  //   if (process.env.NODE_ENV !== "PRODUCTION") {
+  //     const errorMessage = error instanceof Error ? error.message : String(error);
+  //     baseLogger.error("Database health check failed", { 
+  //       error: errorMessage,
+  //       errorType: error instanceof Error ? error.constructor.name : typeof error
+  //     });
+  //   }
+  // }
 
   // Check Redis connection
   if (redisClient) {

@@ -105,8 +105,12 @@ app.get("/healthcheck", async (_request, reply) => {
   return reply.status(statusCode).send(healthStatus);
 });
 
-app.setErrorHandler((error, request, reply) => {
-  baseLogger.error({ err: error, url: request.url, method: request.method }, "Unhandled error");
+app.setErrorHandler((error: any, request, reply) => {
+  baseLogger.error({ err: {
+    message: error?.message || "Unknown error message",
+    stack: error?.stack,
+    ...(error || {}),
+  }, url: request.url, method: request.method }, "Unhandled error");
 
   const validationError = (error as any)?.validation;
   if (validationError) {

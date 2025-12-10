@@ -48,9 +48,9 @@ app.get("/healthcheck", async (_request, reply) => {
   // Check database connection
   // Use main prisma client (works for local DB and production)
   // prismaClientRO1 is optional and only used if explicitly configured
-  try {
-    // Simple query to check database connectivity
-    const result = await prisma.$queryRaw`SELECT 1 as health`;
+  // try {
+  //   // Simple query to check database connectivity
+  //   const result = await prisma.$queryRaw`SELECT 1 as health`;
 
   //   // Verify we got a result (result should be an array with at least one row)
   //   if (Array.isArray(result) && result.length > 0) {

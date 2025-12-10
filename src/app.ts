@@ -252,6 +252,9 @@ async function main() {
         : []) // No default origins in production - must be explicitly set
     : getAllowedOrigins(); // Use centralized defaults for development
 
+  // In production, allow localhost origins if explicitly enabled (for testing)
+  const allowLocalhostInProduction = process.env.ALLOW_LOCALHOST_IN_PRODUCTION === 'true';
+
   app.register(cors, {
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, Postman, curl, etc.)
@@ -260,8 +263,11 @@ async function main() {
         return;
       }
 
+      // In production, allow localhost if explicitly enabled (for local testing)
+      const isDevelopmentMode = !isProduction || allowLocalhostInProduction;
+      
       // Validate origin using centralized logic
-      const isAllowed = isOriginAllowed(origin, allowedOrigins, !isProduction);
+      const isAllowed = isOriginAllowed(origin, allowedOrigins, isDevelopmentMode);
 
       if (isAllowed) {
         callback(null, true);

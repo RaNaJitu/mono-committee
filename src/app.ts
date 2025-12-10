@@ -18,8 +18,6 @@ import  { redisClient } from "./utils/redis";
 // import { prisma, prismaClientRO1, prismaClientRO2 } from "./utils/prisma";
 import { prisma } from "./utils/prisma";
 import baseLogger from './utils/logger/winston';
-import { fmt } from "./config";
-import { HttpException } from "./exception/http.exception";
 import {
   generalRateLimitConfig,
   authRateLimitConfig,
@@ -27,7 +25,8 @@ import {
 } from "./config/rate-limit.config";
 import { FILE_UPLOAD, NETWORK } from "./constants/security.constants";
 import { csrfProtection } from "./middleware/csrf.middleware";
-import { getAllowedOrigins, isOriginAllowed } from "./utils/origin-validator";
+import { getAllowedOrigins, createCorsOriginHandler } from "./utils/origin-validator";
+import { createErrorHandler } from "./exception/global-error-handler";
 //require('./utils/ws-sockets')
 // Create Fastify instance with logger configuration
 export const app = fastify({ logger: true });
@@ -49,9 +48,9 @@ app.get("/healthcheck", async (_request, reply) => {
   // Check database connection
   // Use main prisma client (works for local DB and production)
   // prismaClientRO1 is optional and only used if explicitly configured
-  // try {
-  //   // Simple query to check database connectivity
-  //   const result = await prisma.$queryRaw`SELECT 1 as health`;
+  try {
+    // Simple query to check database connectivity
+    const result = await prisma.$queryRaw`SELECT 1 as health`;
 
   //   // Verify we got a result (result should be an array with at least one row)
   //   if (Array.isArray(result) && result.length > 0) {
@@ -105,45 +104,9 @@ app.get("/healthcheck", async (_request, reply) => {
   return reply.status(statusCode).send(healthStatus);
 });
 
-app.setErrorHandler((error: any, request, reply) => {
-  baseLogger.error({ err: {
-    message: error?.message || "Unknown error message",
-    stack: error?.stack,
-    ...(error || {}),
-  }, url: request.url, method: request.method }, "Unhandled error");
-
-  const validationError = (error as any)?.validation;
-  if (validationError) {
-    return reply.status(400).send(
-      fmt.formatError({
-        status: 400,
-        code: "E400",
-        message: "Validation error",
-        description: error.message || "Request validation failed",
-        data: validationError,
-      })
-    );
-  }
-
-  if (error instanceof HttpException) {
-    return reply.status(error.status).send(fmt.formatError(error));
-  }
-
-  // In production, don't expose error details to prevent information disclosure
-  const isProduction = process.env.NODE_ENV === "PRODUCTION";
-  const errorDescription = isProduction
-    ? "An unexpected error occurred. Please try again later."
-    : ((error as Error)?.message || "Unexpected error occurred");
-
-  return reply.status(500).send(
-    fmt.formatError({
-      status: 500,
-      code: "E500",
-      message: "Internal Server Error",
-      description: errorDescription,
-    })
-  );
-});
+// Create error handler function
+const errorHandler = createErrorHandler();
+app.setErrorHandler(errorHandler);
 
 async function main() {
   // Connect to Redis (only if client is initialized)
@@ -259,34 +222,16 @@ async function main() {
   // In production, allow localhost origins if explicitly enabled (for testing)
   const allowLocalhostInProduction = process.env.ALLOW_LOCALHOST_IN_PRODUCTION === 'true';
 
+  // Create CORS origin handler function
+  const corsOriginHandler = createCorsOriginHandler(
+    allowedOrigins,
+    isProduction,
+    allowLocalhostInProduction,
+    baseLogger
+  );
+
   app.register(cors, {
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, curl, etc.)
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-
-      // In production, allow localhost if explicitly enabled (for local testing)
-      const isDevelopmentMode = !isProduction || allowLocalhostInProduction;
-      
-      // Validate origin using centralized logic
-      const isAllowed = isOriginAllowed(origin, allowedOrigins, isDevelopmentMode);
-
-      if (isAllowed) {
-        callback(null, true);
-      } else {
-        if (allowedOrigins.length === 0 && isProduction) {
-          baseLogger.warn('CORS: No allowed origins configured in production');
-        } else {
-          baseLogger.warn('CORS: Blocked origin', { 
-            origin, 
-            allowedOrigins: allowedOrigins.length > 0 ? allowedOrigins : 'none (production)' 
-          });
-        }
-        callback(new Error('CORS: Origin not allowed'), false);
-      }
-    },
+    origin: corsOriginHandler,
     credentials: true, // Enable credentials for authenticated requests
     exposedHeaders: ["X-Access-Token"],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

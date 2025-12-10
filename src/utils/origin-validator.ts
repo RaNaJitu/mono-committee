@@ -91,3 +91,51 @@ export const extractOrigin = (headers: {
   );
 };
 
+/**
+ * Type definition for CORS origin callback
+ */
+type OriginCallback = (err: Error | null, origin: string | boolean | string[]) => void;
+
+/**
+ * Creates a CORS origin validation callback function
+ * @param allowedOrigins - List of allowed origins
+ * @param isProduction - Whether we're in production mode
+ * @param allowLocalhostInProduction - Whether to allow localhost in production (for testing)
+ * @param logger - Logger instance for logging blocked origins
+ * @returns CORS origin callback function
+ */
+export const createCorsOriginHandler = (
+  allowedOrigins: string[],
+  isProduction: boolean,
+  allowLocalhostInProduction: boolean,
+  logger: { warn: (message: string, meta?: any) => void }
+) => {
+  return (origin: string | undefined, callback: OriginCallback): void => {
+    // Allow requests with no origin (mobile apps, Postman, curl, etc.)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    // In production, allow localhost if explicitly enabled (for local testing)
+    const isDevelopmentMode = !isProduction || allowLocalhostInProduction;
+    
+    // Validate origin using centralized logic
+    const isAllowed = isOriginAllowed(origin, allowedOrigins, isDevelopmentMode);
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      if (allowedOrigins.length === 0 && isProduction) {
+        logger.warn('CORS: No allowed origins configured in production');
+      } else {
+        logger.warn('CORS: Blocked origin', { 
+          origin, 
+          allowedOrigins: allowedOrigins.length > 0 ? allowedOrigins : 'none (production)' 
+        });
+      }
+      callback(new Error('CORS: Origin not allowed'), false);
+    }
+  };
+};
+

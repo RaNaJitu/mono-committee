@@ -94,7 +94,7 @@ export async function hashPassword(
 // }
 
 export function verifyPassword(candidatePassword:string,salt:string,hash:string){
-  const lowerCasePassword = candidatePassword.toLowerCase()
-  const candidateHash  =  crypto.pbkdf2Sync(lowerCasePassword,salt,1000,64,"sha512").toString('hex')
+  // const lowerCasePassword = candidatePassword.toLowerCase()
+  const candidateHash  =  crypto.pbkdf2Sync(candidatePassword,salt,1000,64,"sha512").toString('hex')
   return candidateHash === hash
   }

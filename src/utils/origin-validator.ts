@@ -108,7 +108,7 @@ export const createCorsOriginHandler = (
   allowedOrigins: string[],
   isProduction: boolean,
   allowLocalhostInProduction: boolean,
-  logger: { warn: (message: string, meta?: any) => void }
+  logger: { warn: (message: string, meta?: any) => void, info: (message: string, meta?: any) => void }
 ) => {
   return (origin: string | undefined, callback: OriginCallback): void => {
     // Allow requests with no origin (mobile apps, Postman, curl, etc.)
@@ -122,6 +122,7 @@ export const createCorsOriginHandler = (
     
     // Validate origin using centralized logic
     const isAllowed = isOriginAllowed(origin, allowedOrigins, isDevelopmentMode);
+    logger.info('CORS: Origin allowed', { origin, isAllowed }); 
 
     if (isAllowed) {
       callback(null, true);

@@ -59,6 +59,9 @@ export const isOriginAllowed = (
   if (isDevelopment && isLocalNetworkOrigin(origin)) {
     return true;
   }
+  console.log('allowedOrigins', allowedOrigins);
+  console.log('origin', origin);
+  console.log('isDevelopment', isDevelopment);
 
   // Check against allowed origins list
   return allowedOrigins.some(allowed => {

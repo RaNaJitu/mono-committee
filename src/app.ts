@@ -19,9 +19,7 @@ import  { redisClient } from "./utils/redis";
 import { prisma } from "./utils/prisma";
 import baseLogger from './utils/logger/winston';
 import {
-  generalRateLimitConfig,
-  authRateLimitConfig,
-  registerRateLimitConfig,
+  createGeneralRateLimitConfig,
 } from "./config/rate-limit.config";
 import { FILE_UPLOAD, NETWORK } from "./constants/security.constants";
 import { csrfProtection } from "./middleware/csrf.middleware";
@@ -109,30 +107,28 @@ const errorHandler = createErrorHandler();
 app.setErrorHandler(errorHandler);
 
 async function main() {
-  // Connect to Redis (only if client is initialized)
-  // if (redisClient) {
-  //   try {
-  //     // Check if already connected
-  //     if (!redisClient.isOpen) {
-  //       baseLogger.info('Connecting to Redis...');
-  //       await redisClient.connect();
-  //       baseLogger.info("Connected to Redis successfully");
-  //     } else {
-  //       baseLogger.info("Redis already connected");
-  //     }
-  //   } catch (error: unknown) {
-  //     const errorMessage = error instanceof Error ? error.message : String(error);
-  //     baseLogger.error("Could not connect to Redis", { 
-  //       error: errorMessage,
-  //       host: process.env.REDIS_URL || 'localhost',
-  //       port: process.env.REDIS_PORT || 6379,
-  //     });
-  //     // Don't block server startup if Redis fails - it's used for rate limiting and caching
-  //     baseLogger.warn("Server will continue without Redis (rate limiting may not work)");
-  //   }
-  // } else {
-  //   baseLogger.warn("Redis client not initialized - rate limiting may not work");
-  // }
+  // Connect to Redis (optional - not used for rate limiting currently)
+  if (redisClient) {
+    try {
+      // Check if already connected
+      if (!redisClient.isOpen) {
+        baseLogger.info('Connecting to Redis...');
+        await redisClient.connect();
+        baseLogger.info("Connected to Redis successfully");
+      } else {
+        baseLogger.info("Redis already connected");
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      baseLogger.error("Could not connect to Redis", { 
+        error: errorMessage,
+        host: process.env.REDIS_URL || 'localhost',
+        port: process.env.REDIS_PORT || 6379,
+      });
+      // Don't block server startup if Redis fails
+      baseLogger.warn("Server will continue without Redis");
+    }
+  }
 
   const PORT = Number(process.env.PORT) || NETWORK.DEFAULT_PORT;
   const HOST = process.env.HOST || NETWORK.DEFAULT_HOST;
@@ -174,29 +170,6 @@ async function main() {
   });
   // baseLogger.info('CSRF protection enabled');
 
-  // Register route-specific rate limiting FIRST (before general limit)
-  // These will take precedence over the general limit for specific routes
-  
-  // Login endpoint: 5 requests per 15 minutes (prevents brute force)
-  app.register(async (app) => {
-    app.register(rateLimit, authRateLimitConfig);
-  }, { prefix: '/api/v1/auth/login' });
-  
-  // Register endpoint: 3 requests per hour (very strict)
-  app.register(async (app) => {
-    app.register(rateLimit, registerRateLimitConfig);
-  }, { prefix: '/api/v1/auth/register' });
-  
-  // Register general rate limiting - Applied to all other routes
-  // 100 requests per minute per IP
-  // This protects against DDoS and brute force attacks
-  app.register(rateLimit, generalRateLimitConfig);
-  
-  // baseLogger.info('Rate limiting configured:');
-  // baseLogger.info('  - General: 100 requests per minute per IP');
-  // baseLogger.info('  - Login: 5 requests per 15 minutes per IP');
-  // baseLogger.info('  - Register: 3 requests per hour per IP');
-  
   app.register(multipart, {
     limits: {
       fileSize: FILE_UPLOAD.MAX_SIZE_MULTIPART,
@@ -244,7 +217,21 @@ async function main() {
     developmentMode: !isProduction ? 'Local network IPs allowed' : 'strict',
   });
 
-  app.register(Autoload, {
+  // Register general rate limiting - Applied to all routes
+  // 100 requests per minute per IP
+  // Note: Route-specific limits (login/register) are handled via middleware
+  const generalRateLimitConfig = createGeneralRateLimitConfig();
+  await app.register(rateLimit, generalRateLimitConfig);
+  
+  baseLogger.info('Rate limiting configured', {
+    storage: 'in-memory cache',
+    generalLimit: '100 requests per minute',
+    authLimit: '5 requests per 15 minutes (via middleware)',
+    registerLimit: '3 requests per hour (via middleware)',
+  });
+
+  // Register routes
+  await app.register(Autoload, {
     dir: path.join(__dirname, "modules"),
     options: { prefix: "/api/v1" },
   });

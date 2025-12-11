@@ -1,5 +1,6 @@
 import { FastifyRequest } from 'fastify';
 import { fmt } from './index';
+import baseLogger from '../utils/logger/winston';
 
 /**
  * Get client IP address from request
@@ -20,13 +21,14 @@ export const getClientIP = (request: FastifyRequest): string => {
 type RateLimitContext = any;
 
 /**
- * General API rate limit configuration
+ * Creates general API rate limit configuration
  * 100 requests per minute per IP
+ * @param redisClient - Optional Redis client for distributed rate limiting
  */
-export const generalRateLimitConfig = {
+export const createGeneralRateLimitConfig = (redisClient?: any) => ({
   max: 100,
   timeWindow: 60 * 1000, // 1 minute
-  cache: 10000, // Cache size
+  ...(redisClient ? { redis: redisClient } : { cache: 10000 }), // Use Redis if available, otherwise in-memory cache
   allowList: ['127.0.0.1', '::1'], // Allow localhost
   keyGenerator: (request: FastifyRequest) => {
     const ip = getClientIP(request);
@@ -44,23 +46,35 @@ export const generalRateLimitConfig = {
       retryAfter: Math.ceil(context.ttl / 1000),
     };
   },
-};
+});
+
+// Backward compatibility - default config without Redis
+export const generalRateLimitConfig = createGeneralRateLimitConfig();
 
 /**
- * Authentication endpoints rate limit configuration
+ * Creates authentication endpoints rate limit configuration
  * Stricter limits: 5 requests per 15 minutes per IP
  * This prevents brute force attacks
+ * @param redisClient - Optional Redis client for distributed rate limiting
  */
-export const authRateLimitConfig = {
+export const createAuthRateLimitConfig = (redisClient?: any) => ({
   max: 5,
   timeWindow: 15 * 60 * 1000, // 15 minutes
-  cache: 10000,
+  ...(redisClient ? { redis: redisClient } : { cache: 10000 }), // Use Redis if available, otherwise in-memory cache
   allowList: ['127.0.0.1', '::1'], // Allow localhost in development
   keyGenerator: (request: FastifyRequest) => {
     const ip = getClientIP(request);
     // Include route in key for per-endpoint limiting
     const route = request.url.split('?')[0];
-    return `rate-limit:auth:${route}:${ip}`;
+    const key = `rate-limit:auth:${route}:${ip}`;
+    
+    baseLogger.info('Auth rate limit key generated', {
+      ip,
+      route: request.url,
+      key,
+    });
+    
+    return key;
   },
   errorResponseBuilder: (_request: FastifyRequest, context: RateLimitContext) => {
     const errorResponse = fmt.formatError({
@@ -74,16 +88,20 @@ export const authRateLimitConfig = {
       retryAfter: Math.ceil(context.ttl / 1000),
     };
   },
-};
+});
+
+// Backward compatibility - default config without Redis
+export const authRateLimitConfig = createAuthRateLimitConfig();
 
 /**
- * Registration endpoint rate limit configuration
+ * Creates registration endpoint rate limit configuration
  * Very strict: 3 requests per hour per IP
+ * @param redisClient - Optional Redis client for distributed rate limiting
  */
-export const registerRateLimitConfig = {
+export const createRegisterRateLimitConfig = (redisClient?: any) => ({
   max: 3,
   timeWindow: 60 * 60 * 1000, // 1 hour
-  cache: 10000,
+  ...(redisClient ? { redis: redisClient } : { cache: 10000 }), // Use Redis if available, otherwise in-memory cache
   allowList: ['127.0.0.1', '::1'], // Allow localhost in development
   keyGenerator: (request: FastifyRequest) => {
     const ip = getClientIP(request);
@@ -101,4 +119,7 @@ export const registerRateLimitConfig = {
       retryAfter: Math.ceil(context.ttl / 1000),
     };
   },
-};
+});
+
+// Backward compatibility - default config without Redis
+export const registerRateLimitConfig = createRegisterRateLimitConfig();

@@ -3,6 +3,7 @@ import { IRouteOptions } from "../../interfaces/fatstify.interface";
 import {
   preUserHandler,
 } from "../../middleware";
+import { authRateLimitMiddleware, registerRateLimitMiddleware } from "../../middleware/rate-limit.middleware";
 import { validator } from "../../utils/validator";
 
 import {
@@ -35,6 +36,7 @@ const AuthRoutes: IRouteOptions<{
     schema: loginSchema,
     validatorCompiler: validator({ body: loginBodySchema }),
     method: API_METHODS.POST,
+    preHandler: [authRateLimitMiddleware],
   },
   {
     url: "/profile/me",
@@ -51,6 +53,7 @@ const AuthRoutes: IRouteOptions<{
     schema: registerUser,
     validatorCompiler: validator({ body: registerUserBodySchema }),
     method: API_METHODS.POST,
+    preHandler: [registerRateLimitMiddleware],
   },
   {
     url: "/logout",

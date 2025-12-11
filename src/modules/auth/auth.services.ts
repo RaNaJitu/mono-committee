@@ -8,39 +8,71 @@ import baseLogger from "../../utils/logger/winston";
 
 type PrismaTransactionClient = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
 
+/**
+ * Finds a user by phone number using the provided Prisma client (can be transaction client)
+ */
+const findUserByPhoneNoWithClient = async (
+  client: PrismaClient | PrismaTransactionClient,
+  phoneNo: string
+): Promise<FoundUser> => {
+  const user = await client.user.findUnique({
+    where: {
+      phoneNo: phoneNo,
+    },
+  });
+  return user;
+};
+
 export const RegisterUser = async (
-  prisma: PrismaClient | PrismaTransactionClient,
+  prismaClient: PrismaClient | PrismaTransactionClient,
   body: RegisterUserInput
 ): Promise<User> => {
   const { email, phoneNo, password, role, name } = body;
   
-  
-    // const user = await findUserByUsernameAndRole(userName, role, phoneNo);
-  const user = await findUserByPhoneNo(phoneNo);
+  try {
+    // Check if user already exists - use the same client (transaction or regular)
+    // This ensures the check happens within the transaction if using transaction client
+    const existingUser = await findUserByPhoneNoWithClient(prismaClient, phoneNo);
 
-    if (user) {
-        throw new BadRequestException({
-                message: "Phone number already exists",
-                description: "Phone number should be unique",
-            });
+    if (existingUser) {
+      throw new BadRequestException({
+        message: "Phone number already exists",
+        description: "Phone number should be unique",
+      });
     }
+
     // Hash password
-  const { hash, salt } = await hashPassword(password || 'admin123');
-  
-  const dataToCreate: Omit<RegisterUserInput, "password"> = {
-    email,
-    phoneNo,
-    role,
-    name,
-  };
-  baseLogger.info("==dataToCreate==:", dataToCreate);
-    const created_user = await prisma.user.create({
-        data: { ...dataToCreate, salt, password: hash },
+    const { hash, salt } = await hashPassword(password || 'admin123');
+    
+    const dataToCreate: Omit<RegisterUserInput, "password"> = {
+      email,
+      phoneNo,
+      role,
+      name,
+    };
+    
+    baseLogger.info("==dataToCreate==:", dataToCreate, salt, hash);
+    
+    // Create user - if this fails, transaction will rollback automatically
+    const created_user = await prismaClient.user.create({
+      data: { ...dataToCreate, salt, password: hash },
     });
 
     //HERE WE ARE ASSIGN THE SUB USER TO ROLE
 
     return created_user;
+  } catch (error) {
+    // Log the error for debugging
+    baseLogger.error("Error during user registration", {
+      error: error instanceof Error ? error.message : String(error),
+      phoneNo,
+      email,
+    });
+    
+    // Re-throw the error so the transaction can rollback
+    // If it's already a BadRequestException, it will be handled by the error handler
+    throw error;
+  }
 };
 
 

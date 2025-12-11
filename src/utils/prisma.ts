@@ -51,7 +51,14 @@ function attachPrismaLogListeners(client: PrismaClient, clientName: string = 'ma
 // Read-only clients (only create if URLs are provided)
 // These are optional - if not set, they will be undefined
 
-const prisma = createPrismaClient(process.env.DATABASE_URL_RW as string);
+// Validate DATABASE_URL_RW before creating Prisma client
+const databaseUrl = process.env.DATABASE_URL_RW;
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL_RW environment variable is not set');
+}
+
+
+const prisma = createPrismaClient(databaseUrl);
 attachPrismaLogListeners(prisma, 'main');
 
 // const prismaClientRO1 = process.env.DATABASE_URL_RO1 

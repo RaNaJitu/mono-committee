@@ -22,9 +22,10 @@ export interface AddCommitteeRequestBody {
   committeeAmount: number;
   commissionMaxMember: number;
   noOfMonths: number;
+  startCommitteeDate: Date;
   fineAmount?: number;
   extraDaysForFine?: number;
-  startCommitteeDate?: Date | null;
+  endCommitteeDate?: Date | null;
 }
 
 export interface AddCommitteeMemberBody {
@@ -81,9 +82,10 @@ export interface AddCommitteePayload {
   noOfMonths: number;
   createdBy: number;
   updatedBy: number;
+  startCommitteeDate: Date | null;
   fineAmount?: number;
   extraDaysForFine?: number;
-  startCommitteeDate?: Date | null;
+  endCommitteeDate?: Date | null;
 }
 
 export interface CommitteeMemberRecord {

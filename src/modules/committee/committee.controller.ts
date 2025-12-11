@@ -33,15 +33,24 @@ export const ADD_COMMITTEE = async (
         request,
         "data"
     );
-    const data = await createCommitteeForAdmin(authUser, request.body);
-    return reply.status(200).send(
-        fmt.formatResponse(
-            {
-                ...data,
-            },
-            "Committee Added!"
-        )
-    );
+    
+    try {
+        // createCommitteeForAdmin uses transaction - if any error occurs, committee creation is rolled back
+        const data = await createCommitteeForAdmin(authUser, request.body);
+        
+        return reply.status(200).send(
+            fmt.formatResponse(
+                {
+                    ...data,
+                },
+                "Committee Added!"
+            )
+        );
+    } catch (error) {
+        // Error is already logged in createCommitteeForAdmin
+        // Re-throw to let the global error handler process it
+        throw error;
+    }
 };
 
 export const ADD_COMMITTEE_MEMBER = async (
@@ -54,15 +63,25 @@ export const ADD_COMMITTEE_MEMBER = async (
       request,
       "data"
   );
-  const data = await addCommitteeMemberWithWorkflow(authUser, request.body);
-  return reply.status(200).send(
-      fmt.formatResponse(
-          {
-              ...data,
-          },
-          "Committee Member Added!"
-      )
-  );
+  
+  try {
+      // addCommitteeMemberWithWorkflow uses transaction - if any error occurs, all operations are rolled back
+      // This includes: user creation (if new), committee member creation, draw creation, and status update
+      const data = await addCommitteeMemberWithWorkflow(authUser, request.body);
+      
+      return reply.status(200).send(
+          fmt.formatResponse(
+              {
+                  ...data,
+              },
+              "Committee Member Added!"
+          )
+      );
+  } catch (error) {
+      // Error is already logged in addCommitteeMemberWithWorkflow
+      // Re-throw to let the global error handler process it
+      throw error;
+  }
 };
 
 export const GET_COMMITTEE_MEMBER = async (

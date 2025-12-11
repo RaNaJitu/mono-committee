@@ -45,13 +45,13 @@ app.get("/healthcheck", async (_request, reply) => {
 
   // Check database connection
   // Use main prisma client (works for local DB and production)
-  // prismaClientRO1 is optional and only used if explicitly configured
   try {
     // Simple query to check database connectivity
     const result = await prisma.$queryRaw`SELECT 1 as health`;
 
     // Verify we got a result (result should be an array with at least one row)
-    if (Array.isArray(result) && result.length > 0) {
+    // Add null/undefined checks to prevent "Cannot read properties of undefined"
+    if (result && Array.isArray(result) && result.length > 0) {
       healthStatus.services.database = "connected";
     } else {
       healthStatus.services.database = "disconnected";
@@ -63,9 +63,11 @@ app.get("/healthcheck", async (_request, reply) => {
     // Log error in development for debugging
     if (process.env.NODE_ENV !== "PRODUCTION") {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
       baseLogger.error("Database health check failed", { 
         error: errorMessage,
-        errorType: error instanceof Error ? error.constructor.name : typeof error
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        ...(errorStack && { stack: errorStack })
       });
     }
   }
@@ -73,7 +75,11 @@ app.get("/healthcheck", async (_request, reply) => {
   // Check Redis connection
   if (redisClient) {
     try {
-      if (redisClient.isOpen) {
+      // Check if Redis client is connected
+      if (!redisClient.isOpen) {
+        healthStatus.services.redis = "disconnected";
+        healthStatus.status = "degraded";
+      } else {
         const pingResult = await redisClient.ping();
         // ping() returns "PONG" if successful
         if (pingResult === "PONG") {
@@ -82,16 +88,39 @@ app.get("/healthcheck", async (_request, reply) => {
           healthStatus.services.redis = "disconnected";
           healthStatus.status = "degraded";
         }
-      } else {
-        healthStatus.services.redis = "disconnected";
-        healthStatus.status = "degraded";
       }
     } catch (error) {
       healthStatus.services.redis = "disconnected";
       healthStatus.status = "degraded";
       // Log error in development for debugging
       if (process.env.NODE_ENV !== "PRODUCTION") {
-        baseLogger.error("Redis health check failed", { error });
+        // Properly extract error information to avoid empty error objects
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorName = error instanceof Error ? error.name : typeof error;
+        
+        // Check if it's an authentication error
+        const isAuthError = errorMessage.includes('NOAUTH') || errorMessage.includes('Authentication required');
+        
+        const errorDetails: Record<string, unknown> = {
+          error: errorMessage,
+          errorType: errorName,
+        };
+        
+        if (errorStack) {
+          errorDetails.stack = errorStack;
+        }
+        
+        if (error && typeof error === 'object' && 'code' in error) {
+          errorDetails.code = (error as any).code;
+        }
+        
+        if (isAuthError) {
+          errorDetails.hint = 'Redis requires authentication. Check REDIS_PWD environment variable.';
+          errorDetails.hasPassword = !!process.env.REDIS_PWD;
+        }
+        
+        baseLogger.error("Redis health check failed", errorDetails);
       }
     }
   } else {
@@ -120,11 +149,20 @@ async function main() {
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      baseLogger.error("Could not connect to Redis", { 
+      const isAuthError = errorMessage.includes('NOAUTH') || errorMessage.includes('Authentication required');
+      
+      const errorDetails: Record<string, unknown> = {
         error: errorMessage,
         host: process.env.REDIS_URL || 'localhost',
         port: process.env.REDIS_PORT || 6379,
-      });
+      };
+      
+      if (isAuthError) {
+        errorDetails.hint = 'Redis requires authentication. Set REDIS_PWD environment variable if Redis has a password.';
+        errorDetails.hasPassword = !!process.env.REDIS_PWD;
+      }
+      
+      baseLogger.error("Could not connect to Redis", errorDetails);
       // Don't block server startup if Redis fails
       baseLogger.warn("Server will continue without Redis");
     }

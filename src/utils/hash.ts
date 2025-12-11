@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { PASSWORD_HASH } from '../constants/security.constants';
+import baseLogger from './logger/winston';
 
 /**
  * Hashes a password using PBKDF2 with high iteration count
@@ -56,45 +57,52 @@ export async function hashPassword(
  * const isValid = await verifyPassword('MyPassword', salt, storedHash);
  * ```
  */
-// export async function verifyPassword(
-//   candidatePassword: string,
-//   salt: string,
-//   hash: string
-// ): Promise<boolean> {
-//   if (!candidatePassword || !salt || !hash) {
-//     return false;
-//   }
-
-//   try {
-//     // DO NOT lowercase password - preserve case sensitivity
-//     const candidateHashBuffer = await new Promise<Buffer>((resolve, reject) => {
-//       crypto.pbkdf2(
-//         candidatePassword,
-//         salt,
-//         PASSWORD_HASH.ITERATIONS,
-//         PASSWORD_HASH.KEY_LENGTH,
-//         PASSWORD_HASH.ALGORITHM,
-//         (err, derivedKey) => {
-//           if (err) reject(err);
-//           else resolve(derivedKey);
-//         }
-//       );
-//     });
-
-//     const candidateHash = candidateHashBuffer.toString('hex');
-    
-//     // Use timing-safe comparison to prevent timing attacks
-//     return crypto.timingSafeEqual(
-//       Buffer.from(hash, 'hex'),
-//       Buffer.from(candidateHash, 'hex')
-//     );
-//   } catch (error) {
-//     return false;
-//   }
-// }
-
-export function verifyPassword(candidatePassword:string,salt:string,hash:string){
-  // const lowerCasePassword = candidatePassword.toLowerCase()
-  const candidateHash  =  crypto.pbkdf2Sync(candidatePassword,salt,1000,64,"sha512").toString('hex')
-  return candidateHash === hash
+export async function verifyPassword(
+  candidatePassword: string,
+  salt: string,
+  hash: string
+): Promise<boolean> {
+  if (!candidatePassword || !salt || !hash) {
+    return false;
   }
+
+  try {
+    // DO NOT lowercase password - preserve case sensitivity
+    const candidateHashBuffer = await new Promise<Buffer>((resolve, reject) => {
+      crypto.pbkdf2(
+        candidatePassword,
+        salt,
+        PASSWORD_HASH.ITERATIONS,
+        PASSWORD_HASH.KEY_LENGTH,
+        PASSWORD_HASH.ALGORITHM,
+        (err, derivedKey) => {
+          if (err) reject(err);
+          else resolve(derivedKey);
+        }
+      );
+    });
+
+    const candidateHash = candidateHashBuffer.toString('hex');
+    
+    // Use timing-safe comparison to prevent timing attacks
+    return crypto.timingSafeEqual(
+      Buffer.from(hash, 'hex'),
+      Buffer.from(candidateHash, 'hex')
+    );
+  } catch (error) {
+    baseLogger.error("Error during password verification", {
+      error: error instanceof Error ? error.message : String(error),
+      candidatePassword,
+      salt,
+      hash,
+    });
+    return false;
+  }
+}
+
+// export function verifyPassword(candidatePassword:string,salt:string,hash:string){
+//   // const lowerCasePassword = candidatePassword.toLowerCase()
+//   baseLogger.info("==candidatePassword==:", candidatePassword, salt, hash);
+//   const candidateHash  =  crypto.pbkdf2Sync(candidatePassword,salt,1000,64,"sha512").toString('hex')
+//   return candidateHash === hash
+//   }

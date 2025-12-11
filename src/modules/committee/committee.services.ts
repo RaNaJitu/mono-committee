@@ -7,7 +7,7 @@ import {
   AuthenticatedUserPayload,
   RegisterUserRequestBody,
 } from "../auth/auth.types";
-import { RegisterUser, findUserByPhoneNo } from "../auth/auth.services";
+import { RegisterUser } from "../auth/auth.services";
 import {
   AddCommitteeMemberBody,
   AddCommitteePayload,
@@ -26,7 +26,7 @@ import {
   CommitteeMemberWithUserRecord,
   CommitteeSelectRecord,
   committeeReadRepository,
-  createCommitteeRecord,
+  committeeSelectFields,
   findCommitteesByAdmin,
   findCommitteesForMember,
   findCommitteeDrawList as findCommitteeDrawListRaw,
@@ -311,20 +311,57 @@ export async function createCommitteeForAdmin(
 ): Promise<CommitteeSummary> {
   assertAdmin(authUser);
 
-  const payload: AddCommitteePayload = {
-    committeeName: body.committeeName,
-    committeeAmount: body.committeeAmount,
-    commissionMaxMember: body.commissionMaxMember,
-    noOfMonths: body.noOfMonths,
-    createdBy: Number(authUser.id),
-    updatedBy: Number(authUser.id),
-    fineAmount: body.fineAmount,
-    extraDaysForFine: body.extraDaysForFine,
-    startCommitteeDate: body.startCommitteeDate,
-  };
+  try {
+    // Calculate end committee date from start date and number of months
+    // Zod validation ensures startCommitteeDate is already a Date object
+    let endCommitteeDate: Date | null = null;
+    if (body.startCommitteeDate) {
+      endCommitteeDate = new Date(body.startCommitteeDate);
+      endCommitteeDate.setMonth(endCommitteeDate.getMonth() + body.noOfMonths);
+      endCommitteeDate.setHours(19, 0, 0, 0);
+    } 
+    baseLogger.info("endCommitteeDate", endCommitteeDate, body);
+    // Use transaction to ensure atomicity - if any error occurs, committee creation is rolled back
+    return runInTransaction(
+      async ({ tx }) => {
+        const payload: AddCommitteePayload = {
+          committeeName: body.committeeName,
+          committeeAmount: body.committeeAmount,
+          commissionMaxMember: body.commissionMaxMember,
+          noOfMonths: body.noOfMonths,
+          createdBy: Number(authUser.id),
+          updatedBy: Number(authUser.id),
+          fineAmount: body.fineAmount,
+          extraDaysForFine: body.extraDaysForFine,
+          startCommitteeDate: body.startCommitteeDate,
+          endCommitteeDate: endCommitteeDate,
+        };
 
-  const record = await createCommitteeRecord(payload);
-  return mapCommitteeSummary(record);
+        // Create committee using transaction client
+        const record = await tx.committee.create({
+          data: payload,
+          select: committeeSelectFields,
+        });
+
+        return mapCommitteeSummary(record);
+      },
+      {
+        timeout: 5000,
+        maxWait: 5000,
+        isolationLevel: 'ReadCommitted',
+      }
+    );
+  } catch (error) {
+    // Log error for debugging
+    baseLogger.error("Committee creation failed", {
+      error: error instanceof Error ? error.message : String(error),
+      committeeName: body.committeeName,
+      createdBy: authUser.id,
+    });
+    
+    // Re-throw to let the global error handler process it
+    throw error;
+  }
 }
 
 export async function addCommitteeMemberWithWorkflow(
@@ -334,55 +371,91 @@ export async function addCommitteeMemberWithWorkflow(
   assertAdmin(authUser);
   const committeeId = ensureCommitteeIdProvided(body.committeeId);
 
-  return runInTransaction(async ({ repo, tx }) => {
-    const existingUser = await findUserByPhoneNo(body.phoneNo);
-    const user =
-      existingUser ?? (await RegisterUser(tx, buildRegisterPayload(body)));
-
-    const alreadyMember = await repo.findCommitteeMember(committeeId, user.id);
-    if (alreadyMember) {
-      throw new BadRequestException({
-        message: "User already added to committee Member",
-        description: "User already added to committee Member",
+  try {
+    // Use transaction to ensure atomicity - if any error occurs, all operations are rolled back
+    // This includes: user creation (if new), committee member creation, draw creation, and status update
+    return runInTransaction(async ({ repo, tx }) => {
+      // Check if user exists - use transaction client to prevent race conditions
+      const existingUser = await tx.user.findUnique({
+        where: { phoneNo: body.phoneNo },
       });
-    }
 
-    await repo.createCommitteeMember({ committeeId, userId: user.id });
+      // Create user if doesn't exist - uses transaction client
+      const user =
+        existingUser ?? (await RegisterUser(tx, buildRegisterPayload(body)));
 
-    const committeeRecord = await repo.findCommitteeDetails(committeeId);
-    if (!committeeRecord) {
-      throw new NotFoundException({
-        message: "Committee not found",
-        description: "Committee not found",
-      });
-    }
+      // Check if user is already a member - uses transaction client
+      const alreadyMember = await repo.findCommitteeMember(committeeId, user.id);
+      if (alreadyMember) {
+        throw new BadRequestException({
+          message: "User already added to committee Member",
+          description: "User already added to committee Member",
+        });
+      }
 
-    const committeeDetails = mapCommitteeDetails(committeeRecord);
-    const committeeMembers = await repo.findCommitteeMembers(committeeId);
+      // Create committee member - uses transaction client
+      await repo.createCommitteeMember({ committeeId, userId: user.id });
 
-    if (committeeDetails.commissionMaxMember < committeeMembers.length) {
-      throw new BadRequestException({
-        message: "Max members reached for this committee",
-        description: "Max members reached for this committee",
-      });
-    }
+      // Get committee details - uses transaction client
+      const committeeRecord = await repo.findCommitteeDetails(committeeId);
+      if (!committeeRecord) {
+        throw new NotFoundException({
+          message: "Committee not found",
+          description: "Committee not found",
+        });
+      }
 
-    if (committeeDetails.commissionMaxMember === committeeMembers.length) {
-      const drawPayload = buildDrawSchedule(committeeDetails, committeeId);
-      baseLogger.info(
-        "Generating %d draws for committee %d",
-        drawPayload.length,
-        committeeId
-      );
-      await repo.createCommitteeDraws(drawPayload);
-      await repo.updateCommitteeStatus(
-        committeeId,
-        statusToPrisma[CommitteeStatus.ACTIVE]
-      );
-    }
+      const committeeDetails = mapCommitteeDetails(committeeRecord);
+      
+      // Get current member count - uses transaction client
+      const committeeMembers = await repo.findCommitteeMembers(committeeId);
 
-    return user;
-  }, { timeout: 10_000 });
+      // Validate member count before proceeding
+      if (committeeDetails.commissionMaxMember < committeeMembers.length) {
+        throw new BadRequestException({
+          message: "Max members reached for this committee",
+          description: "Max members reached for this committee",
+        });
+      }
+
+      // If max members reached, create draws and activate committee - all in transaction
+      if (committeeDetails.commissionMaxMember === committeeMembers.length) {
+        const drawPayload = buildDrawSchedule(committeeDetails, committeeId);
+        baseLogger.info(
+          "Generating %d draws for committee %d",
+          drawPayload.length,
+          committeeId
+        );
+        
+        // Create draws - uses transaction client
+        await repo.createCommitteeDraws(drawPayload);
+        
+        // Update committee status - uses transaction client
+        await repo.updateCommitteeStatus(
+          committeeId,
+          statusToPrisma[CommitteeStatus.ACTIVE]
+        );
+      }
+
+      return user;
+    }, { 
+      timeout: 10_000,
+      maxWait: 10_000,
+      isolationLevel: 'ReadCommitted',
+    });
+  } catch (error) {
+    // Log error for debugging
+    baseLogger.error("Committee member addition failed", {
+      error: error instanceof Error ? error.message : String(error),
+      phoneNo: body.phoneNo,
+      committeeId: body.committeeId,
+      createdBy: authUser.id,
+    });
+    
+    // Re-throw to let the global error handler process it
+    // Transaction will automatically rollback
+    throw error;
+  }
 }
 
 export async function getCommitteeMemberList(

@@ -30,9 +30,10 @@ export const addCommitteeBodySchema = zod.object({
     .nonnegative("Extra days for fine cannot be negative")
     .optional(),
   startCommitteeDate: zod
-    .date({ message: "Start committee date must be a valid date" })
-    .optional()
-    .nullable(),
+    .coerce.date({ message: "Start committee date must be a valid date" })
+    .refine((date) => !isNaN(date.getTime()), {
+      message: "Start committee date must be a valid date",
+    }),
 });
 
 export const addCommitteeMemberBodySchema = zod.object({
@@ -46,9 +47,26 @@ export const addCommitteeMemberBodySchema = zod.object({
     .max(100, "Name cannot exceed 100 characters"),
   phoneNo: zod
     .string({ message: "Phone number must be a string" })
-    .min(10, "Phone number must be at least 10 characters")
+    .min(1, "Phone number is required")
     .max(16, "Phone number cannot exceed 16 characters")
-    .regex(/^[0-9+\-() ]+$/, "Phone number contains invalid characters"),
+    .refine(
+      (val) => {
+        // Allow numeric phone numbers (10+ digits) OR alphanumeric identifiers (1+ chars)
+        // If it's all digits, it must be at least 10 characters
+        // If it contains letters, allow shorter identifiers (for cases like "m1")
+        const isNumeric = /^[0-9+\-() ]+$/.test(val);
+        if (isNumeric) {
+          // Remove non-digit characters for length check
+          const digitsOnly = val.replace(/[^0-9]/g, '');
+          return digitsOnly.length >= 10;
+        }
+        // Allow alphanumeric identifiers (at least 1 character)
+        return /^[a-zA-Z0-9+\-() ]+$/.test(val);
+      },
+      {
+        message: "Phone number must be either: (1) numeric with at least 10 digits, or (2) alphanumeric identifier",
+      }
+    ),
   password: zod
     .string({ message: "Password must be a string" })
     .min(6, "Password must be at least 6 characters")

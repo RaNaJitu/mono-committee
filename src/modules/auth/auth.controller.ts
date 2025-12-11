@@ -6,7 +6,6 @@ import { prisma } from "../../utils/prisma";
 import { BadRequestException } from "../../exception/badrequest.exception";
 import { RegisterUser, findUserByPhoneNo, getUserListCreatedByAdmin } from "./auth.services";
 import { createSession, logLogout } from "../session/session.service";
-import { PrismaClient } from "@prisma/client/extension";
 import { getDataFromRequestContext } from "./helper";
 import { redisClient } from "../../utils/redis";
 import { ForbiddenException } from "../../exception/forbidden.exception";
@@ -103,24 +102,62 @@ export const REGISTER_USER = async (
 ): Promise<FastifyReply> => {
   const { email, phoneNo, password, role, name } = request.body;
 
-  const createdData = await prisma.$transaction(
-    async (transactionClient: PrismaClient) => {
-      const data: RegisterUserInput = {
-        email,
-        phoneNo,
-        password,
-        role,
-        name,
-      };
-      const createUser = await RegisterUser(transactionClient, data);
+  try {
+    // Use transaction to ensure atomicity - if any error occurs, user creation is rolled back
+    const createdData = await prisma.$transaction(
+      async (transactionClient) => {
+        const data: RegisterUserInput = {
+          email,
+          phoneNo,
+          password,
+          role,
+          name,
+        };
+        
+        // RegisterUser will throw an error if user already exists or creation fails
+        // This will cause the transaction to rollback automatically
+        const createUser = await RegisterUser(transactionClient, data);
 
-      return { createUser };
+        return { createUser };
+      },
+      {
+        // Transaction timeout (5 seconds)
+        timeout: 5000,
+        // Maximum number of retries
+        maxWait: 5000,
+        // Isolation level
+        isolationLevel: 'ReadCommitted',
+      }
+    );
+
+    // Only clear cache if user creation was successful
+    // If Redis fails, log error but don't fail the request (user is already created)
+    try {
+      if (redisClient && redisClient.isOpen) {
+        await redisClient.del(`USERS${11}`);
+      }
+    } catch (cacheError) {
+      // Log cache error but don't fail the request
+      baseLogger.warn("Failed to clear user cache after registration", {
+        error: cacheError instanceof Error ? cacheError.message : String(cacheError),
+      });
     }
-  );
-  await redisClient.del(`USERS${11}`);
-  return reply
-    .status(200)
-    .send(fmt.formatResponse(createdData, "User Created Successfully"));
+
+    return reply
+      .status(200)
+      .send(fmt.formatResponse(createdData, "User Created Successfully"));
+  } catch (error) {
+    // Any error in the transaction will automatically rollback the user creation
+    // The error handler will catch and format the response
+    baseLogger.error("User registration failed", {
+      error: error instanceof Error ? error.message : String(error),
+      phoneNo,
+      email,
+    });
+    
+    // Re-throw to let the global error handler process it
+    throw error;
+  }
 };
 
 

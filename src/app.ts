@@ -112,7 +112,7 @@ app.get("/healthcheck", async (_request, reply) => {
         }
         
         if (error && typeof error === 'object' && 'code' in error) {
-          errorDetails.code = (error as any).code;
+          errorDetails.code = (error as { code: string | number }).code;
         }
         
         if (isAuthError) {

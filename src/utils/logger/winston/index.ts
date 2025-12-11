@@ -3,7 +3,7 @@ import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
 import fs from 'fs';
 
-let baseLogger: any = null;
+let baseLogger: winston.Logger;
 const logDirectory = path.resolve(__dirname, '..', '..', '..', '..', 'logs');
 
 // Ensure logs directory exists

@@ -182,7 +182,9 @@ async function main() {
     app.register(fastifySwaggerUi, swaggerUiConfig);
     baseLogger.info('Swagger UI enabled (development mode)');
   } else {
-    baseLogger.info('Swagger UI disabled (production mode)');
+    app.register(fastifySwagger, swaggerConfig);
+    app.register(fastifySwaggerUi, swaggerUiConfig);
+    baseLogger.info('Swagger UI enabled (production mode)');
   }
 
   // Configure CORS with restricted origins

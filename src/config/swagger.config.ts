@@ -33,11 +33,19 @@ export const swaggerConfig: SwaggerOptions = {
   },
 };
 
-export const swaggerUiConfig:FastifySwaggerUiOptions ={
+export const swaggerUiConfig: FastifySwaggerUiOptions = {
   routePrefix: "/swagger/docs",
   uiConfig: {
-    //docExpansion: "full",
-    deepLinking: false,
+    docExpansion: "list", // Show endpoints in list format
+    deepLinking: true, // Enable deep linking to specific endpoints
+    displayRequestDuration: true, // Show request duration
+    filter: true, // Enable filter/search
+    showExtensions: true, // Show extensions
+    showCommonExtensions: true, // Show common extensions
   },
-  staticCSP: false,
+  staticCSP: false, // Disable CSP transformation - let Helmet handle it
+  uiHooks: {
+    onRequest: function (_request, _reply, next) { next() },
+    preHandler: function (_request, _reply, next) { next() }
+  }
 }

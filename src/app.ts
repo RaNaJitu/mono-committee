@@ -137,21 +137,15 @@ async function main() {
   // Register plugins
   app.register(fastifyRequestContext, { defaultStoreValues: { data: "" } });
 
+  // Register Swagger FIRST - Before security headers to avoid CSP conflicts
+  await app.register(fastifySwagger, swaggerConfig);
+  await app.register(fastifySwaggerUi, swaggerUiConfig);
+  baseLogger.info('Swagger UI enabled');
+
   // Register Security Headers (Helmet) - Must be registered early
+  // Note: CSP is disabled globally - Swagger UI needs relaxed CSP and handles its own
   app.register(helmet, {
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for Swagger UI
-        scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for Swagger UI
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'"],
-        fontSrc: ["'self'", "data:"],
-        objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
-        frameSrc: ["'none'"],
-      },
-    },
+    contentSecurityPolicy: false, // Disable CSP - Swagger UI needs 'unsafe-inline' and 'unsafe-eval'
     crossOriginEmbedderPolicy: false, // Disable for Swagger UI compatibility
     hsts: {
       maxAge: 31536000, // 1 year
@@ -161,6 +155,25 @@ async function main() {
     referrerPolicy: {
       policy: 'strict-origin-when-cross-origin',
     },
+  });
+  
+  // Add CSP headers conditionally (skip for Swagger routes)
+  app.addHook('onRequest', async (request, reply) => {
+    // Skip CSP for Swagger routes - Swagger UI handles its own CSP
+    if (!request.url.startsWith('/swagger')) {
+      reply.header('Content-Security-Policy', 
+        "default-src 'self'; " +
+        "style-src 'self' 'unsafe-inline' data:; " +
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+        "img-src 'self' data: https:; " +
+        "connect-src 'self'; " +
+        "font-src 'self' data: https:; " +
+        "object-src 'none'; " +
+        "media-src 'self'; " +
+        "frame-src 'none'; " +
+        "base-uri 'self'"
+      );
+    }
   });
   // baseLogger.info('Security headers configured (Helmet)');
 
@@ -175,17 +188,6 @@ async function main() {
       fileSize: FILE_UPLOAD.MAX_SIZE_MULTIPART,
     },
   });
-
-  // Register Swagger only in non-production environments
-  if (!isProduction) {
-    app.register(fastifySwagger, swaggerConfig);
-    app.register(fastifySwaggerUi, swaggerUiConfig);
-    baseLogger.info('Swagger UI enabled (development mode)');
-  } else {
-    app.register(fastifySwagger, swaggerConfig);
-    app.register(fastifySwaggerUi, swaggerUiConfig);
-    baseLogger.info('Swagger UI enabled (production mode)');
-  }
 
   // Configure CORS with restricted origins
   const allowedOrigins = isProduction
@@ -242,10 +244,9 @@ async function main() {
 
  
   await app.ready();
-  // Only generate Swagger in non-production (already registered conditionally above)
-  if (!isProduction) {
-    app.swagger();
-  }
+  // Generate Swagger documentation after routes are loaded
+  app.swagger();
+  baseLogger.info('Swagger documentation generated');
 
   const shutdown = async () => {
     baseLogger.info("Initiating server shutdown...");

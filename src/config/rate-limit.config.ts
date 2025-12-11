@@ -30,6 +30,11 @@ export const createGeneralRateLimitConfig = (redisClient?: any) => ({
   timeWindow: 60 * 1000, // 1 minute
   ...(redisClient ? { redis: redisClient } : { cache: 10000 }), // Use Redis if available, otherwise in-memory cache
   allowList: ['127.0.0.1', '::1'], // Allow localhost
+  skip: (request: FastifyRequest) => {
+    // Skip rate limiting for Swagger UI and healthcheck endpoints
+    const urlPath = request.url.split('?')[0] || '';
+    return urlPath.startsWith('/swagger') || urlPath === '/healthcheck';
+  },
   keyGenerator: (request: FastifyRequest) => {
     const ip = getClientIP(request);
     return `rate-limit:general:${ip}`;

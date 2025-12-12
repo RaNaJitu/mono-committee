@@ -12,8 +12,10 @@ import {
   LOGOUT,
   GET_CURRENT_USER_PROFILE,
   GET_USER_LIST_CREATED_BY_ADMIN,
+  CHANGE_PASSWORD,
 } from "../auth/auth.controller";
 import {
+  changePasswordSchema,
   getProfileSchema,
   getUserListSchema,
   loginSchema,
@@ -21,6 +23,7 @@ import {
   registerUser,
 } from "./auth.schema";
 import {
+  changePasswordBodySchema,
   loginBodySchema,
   profileQuerySchema,
   registerUserBodySchema,
@@ -69,6 +72,14 @@ const AuthRoutes: IRouteOptions<{
     schema: getUserListSchema,
     validatorCompiler: validator({ queryString: profileQuerySchema }),
     method: API_METHODS.GET,
+  },
+  {
+    url: "/change-password",
+    preHandler: [preUserHandler],
+    handler: CHANGE_PASSWORD,
+    schema: changePasswordSchema,
+    validatorCompiler: validator({ body: changePasswordBodySchema }),
+    method: API_METHODS.PATCH,
   },
 ];
 

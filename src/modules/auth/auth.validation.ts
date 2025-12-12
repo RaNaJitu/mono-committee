@@ -27,7 +27,13 @@ export const registerUserBodySchema = zod.object({
 export const loginBodySchema = zod.object(
   {
     // email: zod.string({ message: "The email should be string format" }),
-    password: zod.string({ message: "The password should be string format " }),
+    password: zod
+      .string({ message: "The password should be string format " })
+      .min(6, "The password should have at least 6 characters or more.")
+      .regex(
+        /^[a-zA-Z0-9@!#$&]+$/,
+        "The Password can only contain letters, numbers, and the symbols @, !, #, $, &"
+      ),
     phoneNo: zod.string({ message: "The phoneNo should be string format" }),
   },
   { message: "Body is required" }
@@ -35,15 +41,20 @@ export const loginBodySchema = zod.object(
 
 export const changePasswordBodySchema = zod.object(
   {
-    oldPassword: zod.string({
-      message: "The oldPassword should be string format",
-    }),
-    password: zod.string({
-      message: "The password should be string format ",
-    }),
-    confirmPassword: zod.string({
-      message: "The confirmPassword should be string format ",
-    }),
+    oldPassword: zod
+      .string({ message: "The oldPassword should be string format" })
+      .min(6, "The oldPassword should have at least 6 characters or more.")
+      .regex(
+        /^[a-zA-Z0-9@!#$&]+$/,
+        "The Password can only contain letters, numbers, and the symbols @, !, #, $, &"
+      ),
+    newPassword: zod.string({
+      message: "The newPassword should be string format ",
+    }).min(6, "The newPassword should have at least 6 characters or more.")
+      .regex(
+        /^[a-zA-Z0-9@!#$&]+$/,
+        "The Password can only contain letters, numbers, and the symbols @, !, #, $, &"
+      ),
   },
   { message: "Body is required" }
 );

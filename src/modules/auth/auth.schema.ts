@@ -285,3 +285,30 @@ export const getUserListSchema = {
     500: fmt.getSwaggerErrorResponse(500, "Internal Server Error"),
   },
 };
+
+const changePasswordBody = {
+  type: "object",
+  required: ["newPassword"],
+  properties: {
+    newPassword: {
+      type: "string",
+      minLength: 8,
+    },
+    oldPassword: {
+      type: "string",
+      minLength: 8,
+    },
+  },
+};
+
+export const changePasswordSchema = {
+  description: "Change user password",
+  tags: ["UserAuth"],
+  summary: "Change User Password",
+  body: changePasswordBody,
+  security: [
+    {
+      bearerAuth: [],
+    },
+  ],
+};

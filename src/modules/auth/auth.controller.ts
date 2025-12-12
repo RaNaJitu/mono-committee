@@ -1,10 +1,10 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { fmt } from "../../config";
 import { signJwt } from "../../utils/jwt";
-import { verifyPassword } from "../../utils/hash";
+import { hashPassword, verifyPassword } from "../../utils/hash";
 import { prisma } from "../../utils/prisma";
 import { BadRequestException } from "../../exception/badrequest.exception";
-import { RegisterUser, findUserByPhoneNo, getUserListCreatedByAdmin } from "./auth.services";
+import { RegisterUser, findUserByPhoneNo, getUserListCreatedByAdmin, updateUserPassword } from "./auth.services";
 import { createSession, logLogout } from "../session/session.service";
 import { getDataFromRequestContext } from "./helper";
 import { redisClient } from "../../utils/redis";
@@ -12,6 +12,7 @@ import { ForbiddenException } from "../../exception/forbidden.exception";
 import baseLogger from "../../utils/logger/winston";
 import {
   AuthenticatedUserPayload,
+  ChangePasswordRequestBody,
   LoginRequestBody,
   ProfileQuerystring,
   RegisterUserInput,
@@ -23,6 +24,7 @@ import { UserRole } from "../../enum/constants";
 import { getClientIP } from "../../config/rate-limit.config";
 import { JWT_CONFIG } from "../../constants/security.constants";
 
+//#region Login
 export const LOGIN = async (
   request: FastifyRequest<{
     Body: LoginRequestBody;
@@ -95,7 +97,9 @@ export const LOGIN = async (
     )
   );
 };
+//#endregion
 
+//#region Register User
 export const REGISTER_USER = async (
   request: FastifyRequest<{ Body: RegisterUserRequestBody }>,
   reply: FastifyReply
@@ -159,8 +163,9 @@ export const REGISTER_USER = async (
     throw error;
   }
 };
+//#endregion
 
-
+//#region Logout
 export const LOGOUT = async (
   request: FastifyRequest,
   reply: FastifyReply
@@ -177,7 +182,9 @@ export const LOGOUT = async (
 
   return reply.status(200).send(fmt.formatResponse({}, "Logout Successful!"));
 };
+//#endregion
 
+//#region Get Current User Profile
 export const GET_CURRENT_USER_PROFILE = async (
   request: FastifyRequest<{ Querystring: ProfileQuerystring }>,
   reply: FastifyReply
@@ -198,8 +205,9 @@ export const GET_CURRENT_USER_PROFILE = async (
     )
   );
 };
+//#endregion
 
-
+//#region Get User List Created By Admin
 export const GET_USER_LIST_CREATED_BY_ADMIN = async (
   request: FastifyRequest<{
     Querystring: ProfileQuerystring
@@ -226,4 +234,34 @@ export const GET_USER_LIST_CREATED_BY_ADMIN = async (
     )
   );
 };
+//#endregion
 
+//#region Change Password
+export const CHANGE_PASSWORD = async (
+  request: FastifyRequest<{ Body: ChangePasswordRequestBody }>,
+  reply: FastifyReply
+): Promise<FastifyReply> => {
+  const authUser: AuthenticatedUserPayload = getDataFromRequestContext<AuthenticatedUserPayload>(
+    request,
+    "data"
+  );
+  const { oldPassword, newPassword } = request.body;
+  const user = await findUserByPhoneNo(authUser.phoneNo);
+  if (!user) {
+    throw new BadRequestException({
+      message: "User not found",
+      description: "User not found",
+    });
+  }
+  const isPasswordValid = await verifyPassword(oldPassword, user.salt, user.password);
+  if (!isPasswordValid) {
+    throw new ForbiddenException({
+      message: "Invalid password",
+      description: "The provided password is incorrect",
+    });
+  }
+  const { hash, salt } = await hashPassword(newPassword);
+  await updateUserPassword(user.id, hash, salt);
+  return reply.status(200).send(fmt.formatResponse({}, "Password Changed Successfully"));
+};
+//#endregion

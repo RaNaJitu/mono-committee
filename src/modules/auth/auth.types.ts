@@ -45,3 +45,7 @@ export interface UserWithProfile extends User {
 
 export type FoundUser = UserWithProfile | null;
 
+export interface ChangePasswordRequestBody {
+  oldPassword: string;
+  newPassword: string;
+}

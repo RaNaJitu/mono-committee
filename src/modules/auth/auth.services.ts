@@ -115,4 +115,11 @@ export async function getUserListCreatedByAdmin(): Promise<any> {
         },
     });
     return user;
-  }
+}
+  
+export async function updateUserPassword(id: number, hash: string, salt: string): Promise<void> {
+  await prisma.user.update({
+    where: { id: id },
+    data: { password: hash, salt: salt },
+  });
+}

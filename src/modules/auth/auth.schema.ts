@@ -312,3 +312,49 @@ export const changePasswordSchema = {
     },
   ],
 };
+
+//#region Forgot Password
+const forgotPasswordBody = {
+  type: "object",
+  required: ["newPassword", "confirmPassword"],
+  properties: {
+    phoneNo: {
+      type: "string",
+      minLength: 10,
+      maxLength: 16,
+      description: "User phone number",
+    },
+    newPassword: {
+      type: "string",
+      minLength: 6,
+      regex: /^[a-zA-Z0-9@!#$&]+$/,
+    },
+    confirmPassword: {
+      type: "string",
+      minLength: 6,
+      regex: /^[a-zA-Z0-9@!#$&]+$/,
+    },
+  },
+};
+
+export const forgotPasswordSchema = {
+  description: "Forgot user password",
+  tags: ["UserAuth"],
+  summary: "Forgot User Password",
+  body: forgotPasswordBody,
+  response: {
+    200: {
+      description: "Successful response",
+      type: "object",
+      properties: {
+        message: { type: "string" },
+        success: { type: "boolean" },
+        code: { type: "string" },
+      },
+    },
+    400: fmt.getSwaggerErrorResponse(400, "Bad Request"),
+    401: fmt.getSwaggerErrorResponse(401, "Unauthorized"),
+    500: fmt.getSwaggerErrorResponse(500, "Internal Server Error"),
+  },
+};
+//#endregion

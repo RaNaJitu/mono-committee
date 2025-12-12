@@ -72,3 +72,15 @@ export const profileQuerySchema = zod.object({
     .transform((val) => Number(val))
     .optional(),
 });
+
+export const forgotPasswordBodySchema = zod.object({
+  phoneNo: zod.string({ message: "The phoneNo should be string format" }),
+  newPassword: zod.string({ message: "The newPassword should be string format" }).min(6, "The newPassword should have at least 6 characters or more.").regex(
+    /^[a-zA-Z0-9@!#$&]+$/,
+    "The Password can only contain letters, numbers, and the symbols @, !, #, $, &"
+  ),
+  confirmPassword: zod.string({ message: "The confirmPassword should be string format" }).min(6, "The confirmPassword should have at least 6 characters or more.").regex(
+    /^[a-zA-Z0-9@!#$&]+$/,
+    "The Password can only contain letters, numbers, and the symbols @, !, #, $, &"
+  ),
+});

@@ -49,3 +49,9 @@ export interface ChangePasswordRequestBody {
   oldPassword: string;
   newPassword: string;
 }
+
+export interface ForgotPasswordRequestBody {
+  phoneNo: string;
+  newPassword: string;
+  confirmPassword: string;
+}

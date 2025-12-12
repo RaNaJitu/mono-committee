@@ -13,6 +13,7 @@ import baseLogger from "../../utils/logger/winston";
 import {
   AuthenticatedUserPayload,
   ChangePasswordRequestBody,
+  ForgotPasswordRequestBody,
   LoginRequestBody,
   ProfileQuerystring,
   RegisterUserInput,
@@ -265,3 +266,30 @@ export const CHANGE_PASSWORD = async (
   return reply.status(200).send(fmt.formatResponse({}, "Password Changed Successfully"));
 };
 //#endregion
+
+//#region Forgot Password
+export const FORGOT_PASSWORD = async (
+  request: FastifyRequest<{ Body: ForgotPasswordRequestBody }>,
+  reply: FastifyReply
+): Promise<FastifyReply> => {
+  const { newPassword, confirmPassword, phoneNo } = request.body;
+  if(newPassword !== confirmPassword) {
+    throw new BadRequestException({
+      message: "New password and confirm password do not match",
+      description: "New password and confirm password do not match",
+    });
+  }
+  const user = await findUserByPhoneNo(phoneNo);
+  if (!user) {
+    throw new BadRequestException({
+      message: "User not found",
+      description: "User not found",
+    });
+  }
+  const { hash, salt } = await hashPassword(newPassword);
+  await updateUserPassword(user.id, hash, salt);
+  return reply.status(200).send(fmt.formatResponse({}, "Password Changed Successfully"));
+};
+//#endregion
+
+

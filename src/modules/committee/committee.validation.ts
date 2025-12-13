@@ -145,3 +145,21 @@ export const userWiseDrawPaidQuerySchema = zod.object({
     .transform((val) => Number(val)),
 });
 
+
+
+//#region Update Draw Amount
+export const updateDrawAmountBodySchema = zod.object({
+  committeeId: zod
+    .number({ message: "Committee ID must be a number" })
+    .int("Committee ID must be an integer")
+    .positive("Committee ID must be positive"),
+  drawId: zod
+    .number({ message: "Draw ID must be a number" })
+    .int("Draw ID must be an integer")
+    .positive("Draw ID must be positive"),
+  amount: zod
+    .number({ message: "Amount must be a number" })
+    .nonnegative("Amount cannot be negative"),
+});
+//#endregion
+

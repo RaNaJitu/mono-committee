@@ -17,6 +17,8 @@ import {
   CommitteeDrawRecord,
   CommitteeMemberWithDraw,
   CommitteeSummary,
+  UpdateDrawAmountBody,
+  UpdateDrawAmountResponse,
   UserWiseDrawPaidBody,
   UserWiseDrawRecord,
 } from "./committee.type";
@@ -34,6 +36,7 @@ import {
   runInTransaction,
   findCommitteeMembersWithUserAndDraw,
 } from "./committee.repository";
+import { ForbiddenException } from "../../exception/forbidden.exception";
 
 const statusToPrisma: Record<CommitteeStatus, CommitteeStatusEnum> = {
   [CommitteeStatus.INACTIVE]: CommitteeStatusEnum.INACTIVE,
@@ -597,3 +600,79 @@ export async function getUserWiseDrawPaidAmount(
 
   return result;
 }
+
+
+//#region Update Draw Amount
+export async function updateDrawAmount(
+  authUser: AuthenticatedUserPayload,
+  payload: UpdateDrawAmountBody
+): Promise<UpdateDrawAmountResponse> {
+  assertAdmin(authUser);
+
+  const committeeDetails = await getCommitteeDetailsOrThrow(
+    Number(payload.committeeId)
+  );
+
+  if(!committeeDetails) {
+    throw new NotFoundException({
+      message: "Committee not found",
+      description: "Committee not found",
+    });
+  }
+  
+  if (committeeDetails.createdBy !== Number(authUser.id)) {
+    throw new ForbiddenException({
+      message: "You are not authorized to update draw amount",
+      description: "You are not authorized to update draw amount",
+    });
+  }
+
+  const draw: any  = await committeeReadRepository.findCommitteeDrawById(Number(payload.drawId));
+  if (!draw) {
+    throw new NotFoundException({
+      message: "Draw not found",
+      description: "Draw not found",
+    });
+  }
+  
+  if (draw.committeeDrawDate > new Date()) {
+    throw new BadRequestException({
+      message: "Draw not started yet",
+      description: "Draw not started yet",
+    });
+  }
+  
+  // Check if draw amount is already set (not zero)
+  const currentAmount = Number(draw.committeeDrawAmount);
+  if (currentAmount !== 0) {
+    throw new BadRequestException({
+      message: "Draw amount already updated",
+      description: "Draw amount cannot be updated once it has been set",
+    });
+  }
+
+  
+  // Validate that the new amount is not less than the minimum required amount
+  const minAmount = Number(draw.committeeDrawMinAmount);
+  const newAmount = Number(payload.amount);
+  if (newAmount < minAmount) {
+    throw new BadRequestException({
+      message: `Draw amount cannot be less than the ${minAmount}`,
+      description: `Draw amount must be at least ${minAmount}`,
+    });
+  }
+
+  const record = await committeeReadRepository.updateCommitteeDrawAmount(
+    Number(draw.id),
+    Number(payload.amount),
+  );
+
+  return {
+    id: record.id,
+    committeeId: record.committeeId,
+    drawId: record.id, // Use record.id as drawId since the record is the draw itself
+    amount: Number(record.committeeDrawAmount),
+  };
+}
+//#endregion
+

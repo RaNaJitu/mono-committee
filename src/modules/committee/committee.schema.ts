@@ -485,3 +485,43 @@ export const getUserWiseDrawPaidSchema = {
   },
 };
 
+//#region Update Draw Amount
+const updateDrawAmountBody = {
+  type: "object",
+  required: ["committeeId", "drawId", "amount"],
+  properties: {
+    committeeId: { type: "integer", minimum: 1, description: "Committee ID" },
+    drawId: { type: "integer", minimum: 1, description: "Draw ID" },
+    amount: { type: "number", minimum: 0, description: "Amount to update" },
+  },
+};
+
+const updateDrawAmountResponse = {
+  200: {
+    description: "Draw amount updated successfully",
+    type: "object",
+    properties: {
+      data: { type: "object", properties: { id: { type: "integer" }, committeeId: { type: "integer" }, drawId: { type: "integer" }, amount: { type: "number" } } },
+      message: { type: "string" },
+      success: { type: "boolean" },
+      code: { type: "string" },
+    },
+  },
+};
+
+export const updateDrawAmountSchema = {
+  description: "Update draw amount",
+  tags: ["Committee"],
+  summary: "Update Draw Amount",
+  body: updateDrawAmountBody,
+  security: [{ bearerAuth: [] }],
+  response: {
+    ...updateDrawAmountResponse,
+  },
+  400: fmt.getSwaggerErrorResponse(400, "Bad Request"),
+  401: fmt.getSwaggerErrorResponse(401, "Unauthorized"),
+  403: fmt.getSwaggerErrorResponse(403, "Forbidden - Admin only"),
+  404: fmt.getSwaggerErrorResponse(404, "Committee or draw not found"),
+  500: fmt.getSwaggerErrorResponse(500, "Internal Server Error"),
+};
+//#endregion

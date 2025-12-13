@@ -8,6 +8,7 @@ import {
   GET_COMMITTEE_DRAW_LIST,
   GET_COMMITTEE_LIST,
   GET_COMMITTEE_MEMBER,
+  UPDATE_DRAW_AMOUNT,
   USER_WISE_DRAW_PAID_GET,
   USER_WISE_DRAW_PAID_UPDATE,
 } from "./committee.controller";
@@ -19,6 +20,7 @@ import {
   getCommitteeMemberSchema,
   updateUserWiseDrawPaidSchema,
   getUserWiseDrawPaidSchema,
+  updateDrawAmountSchema,
 } from "./committee.schema";
 import {
   addCommitteeBodySchema,
@@ -26,6 +28,7 @@ import {
   committeeDrawQuerySchema,
   committeeListQuerySchema,
   committeeMemberQuerySchema,
+  updateDrawAmountBodySchema,
   userWiseDrawPaidBodySchema,
   userWiseDrawPaidQuerySchema,
 } from "./committee.validation";
@@ -90,6 +93,14 @@ const CommitteeRoutes: IRouteOptions<{
     schema: getUserWiseDrawPaidSchema,
     validatorCompiler: validator({ queryString: userWiseDrawPaidQuerySchema }),
     method: API_METHODS.GET,
+  },
+  {
+    url: "/draw/amount-update",
+    handler: UPDATE_DRAW_AMOUNT,
+    preHandler: [preUserHandler],
+    schema: updateDrawAmountSchema,
+    validatorCompiler: validator({ body: updateDrawAmountBodySchema }),
+    method: API_METHODS.PATCH,
   },
 ];
 

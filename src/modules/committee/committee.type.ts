@@ -129,3 +129,17 @@ export interface UserWiseDrawRecord {
   createdAt: Date;
   updatedAt: Date;
 }
+
+
+export interface UpdateDrawAmountBody {
+  committeeId: number;
+  drawId: number;
+  amount: number;
+}
+
+export interface UpdateDrawAmountResponse {
+  id: number;
+  committeeId: number;
+  drawId: number;
+  amount: number;
+}

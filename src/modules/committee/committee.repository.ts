@@ -217,10 +217,22 @@ export function createScopedRepository(client: PrismaClientOrTx) {
       return client.committeeDraw.findUnique({
         where: { id: drawId },
         select: {
+          id: true,
           committeeDrawDate: true,
           committeeDrawAmount: true,
           committeeId: true,
+          committeeDrawMinAmount: true,
+          committeeDrawTime: true,
         },
+      });
+    },
+    updateCommitteeDrawAmount(
+      drawId: number,
+      committeeDrawAmount: number
+    ): Promise<CommitteeDrawRecordRaw> {
+      return prisma.committeeDraw.update({
+        where: { id: drawId },
+        data: { committeeDrawAmount },
       });
     },
   };
@@ -307,3 +319,14 @@ export async function runInTransaction<T>(
   }, options);
 }
 
+//#region Update Draw Amount
+// export async function updateCommitteeDrawAmount(
+//   id: number,
+//   committeeDrawAmount: number
+// ): Promise<CommitteeDrawRecordRaw> {
+//   return prisma.committeeDraw.update({
+//     where: { id },
+//     data: { committeeDrawAmount },
+//   });
+// }
+//#endregion

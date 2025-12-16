@@ -520,12 +520,12 @@ export async function getUserWiseDrawPaidAmount(
   authUser: AuthenticatedUserPayload,
   payload: CommitteeDrawQuerystring
 ): Promise<UserWiseDrawRecord[]> {
-  assertAdmin(authUser);
+  // assertAdmin(authUser);
 
   const committeeDetails = await getCommitteeDetailsOrThrow(
     Number(payload.committeeId)
   );
-  if (committeeDetails.createdBy !== Number(authUser.id)) {
+  if (!committeeDetails) {
     throw new NotFoundException({
       message: "Committee not found",
       description: "Committee not found",

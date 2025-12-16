@@ -517,7 +517,7 @@ export async function updateUserWiseDrawPaidAmount(
 }
 
 export async function getUserWiseDrawPaidAmount(
-  authUser: AuthenticatedUserPayload,
+  _authUser: AuthenticatedUserPayload,
   payload: CommitteeDrawQuerystring
 ): Promise<UserWiseDrawRecord[]> {
   // assertAdmin(authUser);

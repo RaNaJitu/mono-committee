@@ -1,3 +1,14 @@
+// Configure thread pool size BEFORE any imports
+// This optimizes crypto operations (password hashing) for high concurrency
+// Must be set before Node.js initializes the thread pool
+if (!process.env.UV_THREADPOOL_SIZE) {
+  process.env.UV_THREADPOOL_SIZE = process.env.NODE_ENV === 'PRODUCTION' ? '16' : '8';
+}
+
+// Load environment variables from .env even when NODE_ENV is set (PM2 sets NODE_ENV)
+import dotenv from "dotenv";
+dotenv.config();
+
 import { fastify } from "fastify";
 import fastifyRequestContext from "@fastify/request-context";
 import fastifySwagger from "@fastify/swagger";

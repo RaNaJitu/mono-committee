@@ -163,3 +163,11 @@ export const updateDrawAmountBodySchema = zod.object({
 });
 //#endregion
 
+//#region Get Committee Analysis
+export const committeeAnalysisQuerySchema = zod.object({
+  committeeId: zod
+    .string({ message: "Committee ID must be provided in query" })
+    .regex(/^\d+$/, "Committee ID must be a valid number")
+    .transform((val) => Number(val)),
+});
+//#endregion

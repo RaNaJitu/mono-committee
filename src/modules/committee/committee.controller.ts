@@ -4,9 +4,9 @@ import {
     AuthenticatedUserPayload,
     ProfileQuerystring,
 } from "../auth/auth.types";
-import { addCommitteeMemberWithWorkflow, createCommitteeForAdmin, getAllCommitteeList, getCommitteeDrawListForUser, getCommitteeMemberList, getUserWiseDrawPaidAmount, updateDrawAmount, updateUserWiseDrawPaidAmount } from "./committee.services";
+import { addCommitteeMemberWithWorkflow, createCommitteeForAdmin, getAllCommitteeList, getCommitteeAnalysis, getCommitteeDrawListForUser, getCommitteeMemberList, getUserWiseDrawPaidAmount, updateDrawAmount, updateUserWiseDrawPaidAmount } from "./committee.services";
 import { getDataFromRequestContext } from "../auth/helper";
-import { CommitteeDrawQuerystring, CommitteeMemberQuerystring, UserWiseDrawPaidBody, AddCommitteeRequestBody, AddCommitteeMemberBody, UpdateDrawAmountBody } from "./committee.type";
+import { CommitteeDrawQuerystring, CommitteeMemberQuerystring, UserWiseDrawPaidBody, AddCommitteeRequestBody, AddCommitteeMemberBody, UpdateDrawAmountBody, CommitteeAnalysisQuerystring } from "./committee.type";
 
 export const GET_COMMITTEE_LIST = async (
     request: FastifyRequest<{ Querystring: ProfileQuerystring }>,
@@ -178,3 +178,26 @@ export const UPDATE_DRAW_AMOUNT = async (
   );
 };
 //#endregion
+
+
+//#region Get Committee Analysis
+export const GET_COMMITTEE_ANALYSIS = async (
+  request: FastifyRequest<{
+    Querystring: CommitteeAnalysisQuerystring
+  }>,
+  reply: FastifyReply
+): Promise<FastifyReply> => {
+  const authUser = getDataFromRequestContext<AuthenticatedUserPayload>(
+    request,
+    "data"
+  );
+  const data = await getCommitteeAnalysis(authUser, request.query);
+  return reply.status(200).send(
+    fmt.formatResponse(
+      {
+        ...data,
+      },
+      "Fetch Committee Analysis!"
+    )
+  );
+};

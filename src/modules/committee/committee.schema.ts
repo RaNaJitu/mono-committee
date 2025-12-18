@@ -525,3 +525,61 @@ export const updateDrawAmountSchema = {
   500: fmt.getSwaggerErrorResponse(500, "Internal Server Error"),
 };
 //#endregion
+
+//#region Get Committee Analysis
+const committeeAnalysisQuery = {
+  type: "object",
+  required: ["committeeId"],
+  properties: {
+    committeeId: { type: "integer", minimum: 1, description: "Committee ID" },
+  },
+};
+
+const committeeAnalysisResponse = {
+  200: {
+    description: "Committee analysis retrieved successfully",
+    type: "object",
+    properties: {
+      data: {
+        type: "object", properties: {
+          id: { type: "integer" },
+          committeeId: { type: "integer" },
+          committeeName: { type: "string" },
+          committeeAmount: { type: "number" },
+          commissionMaxMember: { type: "integer" },
+          committeeStatus: { type: "integer", enum: [0, 1, 2] },
+          noOfMonths: { type: "integer" },
+          fineAmount: { type: "number", nullable: true },
+          extraDaysForFine: { type: "integer", nullable: true },
+          startCommitteeDate: { type: "string", format: "date-time", nullable: true },
+          analysis: { type: "object", properties: {
+            totalMembers: { type: "integer" },
+            totalCommitteeAmount: { type: "number" },
+            totalCommitteePaidAmount: { type: "number" },
+            totalCommitteeFineAmount: { type: "number" },
+            noOfDrawsCompleted: { type: "integer" },
+            totalDraws: { type: "integer" },
+          } } 
+        }
+      },
+      message: { type: "string" },
+      success: { type: "boolean" },
+      code: { type: "string" },
+    },
+  },
+};
+
+export const committeeAnalysisSchema = {
+  description: "Get committee analysis",
+  tags: ["Committee"],
+  summary: "Get Committee Analysis",
+  querystring: committeeAnalysisQuery,
+  security: [{ bearerAuth: [] }],
+  response: {
+    ...committeeAnalysisResponse,
+  },
+  400: fmt.getSwaggerErrorResponse(400, "Bad Request"),
+  401: fmt.getSwaggerErrorResponse(401, "Unauthorized"),
+  500: fmt.getSwaggerErrorResponse(500, "Internal Server Error"),
+};
+//#endregion

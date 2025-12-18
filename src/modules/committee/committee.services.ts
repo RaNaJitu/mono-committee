@@ -12,6 +12,8 @@ import {
   AddCommitteeMemberBody,
   AddCommitteePayload,
   AddCommitteeRequestBody,
+  CommitteeAnalysis,
+  CommitteeAnalysisQuerystring,
   CommitteeDetails,
   CommitteeDrawQuerystring,
   CommitteeDrawRecord,
@@ -673,6 +675,54 @@ export async function updateDrawAmount(
     drawId: record.id, // Use record.id as drawId since the record is the draw itself
     amount: Number(record.committeeDrawAmount),
   };
+}
+//#endregion
+
+
+//#region Get Committee Analysis
+export async function getCommitteeAnalysis(
+  authUser: AuthenticatedUserPayload,
+  payload: CommitteeAnalysisQuerystring
+): Promise<CommitteeAnalysis> { 
+
+  const committeeDetails = await getCommitteeDetailsOrThrow(payload.committeeId);
+
+  const totalMembers = await committeeReadRepository.countCommitteeMembers(committeeDetails.id);
+  const userWiseDraws =await committeeReadRepository.findUserWiseDrawListByCommitteeIdAndUserId(payload.committeeId, Number(authUser.id));
+  const totalCommitteeFineAmount = userWiseDraws.reduce((acc, curr) => acc + Number(curr.fineAmountPaid), 0);
+  const totalCommitteePaidAmount = userWiseDraws.reduce((acc, curr) => acc + Number(curr.userDrawAmountPaid), 0);
+
+  const drawDates: any = await committeeReadRepository.findCommitteeDrawList(payload.committeeId);
+
+  // Get full committee record to access committeeStatus
+  const committeeRecord = await committeeReadRepository.findCommitteeDetails(payload.committeeId);
+  if (!committeeRecord) {
+    throw new NotFoundException({
+      message: "Committee not found",
+      description: "Committee not found",
+    });
+  }
+
+  const analysisData: CommitteeAnalysis = {
+    committeeId: committeeDetails.id,
+    committeeName: committeeDetails.committeeName,
+    committeeAmount: committeeDetails.committeeAmount,
+    commissionMaxMember: committeeDetails.commissionMaxMember,
+    committeeStatus: statusFromPrisma[committeeRecord.committeeStatus],
+    noOfMonths: committeeDetails.noOfMonths,
+    fineAmount: committeeDetails.fineAmount,
+    extraDaysForFine: committeeDetails.extraDaysForFine,
+    startCommitteeDate: committeeDetails.startCommitteeDate ?? null,
+    analysis: {
+      totalMembers: totalMembers,
+      totalCommitteeAmount: committeeDetails.committeeAmount,
+      totalCommitteePaidAmount: totalCommitteePaidAmount,
+      totalCommitteeFineAmount: totalCommitteeFineAmount,
+      noOfDrawsCompleted: userWiseDraws.length,
+      totalDraws: drawDates?.length ?? 0,
+    },
+  };
+  return analysisData;
 }
 //#endregion
 

@@ -143,3 +143,28 @@ export interface UpdateDrawAmountResponse {
   drawId: number;
   amount: number;
 }
+
+export interface CommitteeAnalysisQuerystring {
+  committeeId: number;
+}
+
+export interface CommitteeAnalysis { 
+  // id: number;
+  committeeId: number;
+  committeeName: string;
+  committeeAmount: number;
+  commissionMaxMember: number;
+  committeeStatus: CommitteeStatus;
+  noOfMonths: number;
+  fineAmount: number;
+  extraDaysForFine: number;
+  startCommitteeDate: Date | null;
+  analysis: {
+    totalMembers: number;
+    totalCommitteeAmount: number;
+    totalCommitteePaidAmount: number;
+    totalCommitteeFineAmount: number;
+    noOfDrawsCompleted: number;
+    totalDraws: number;
+  };
+}

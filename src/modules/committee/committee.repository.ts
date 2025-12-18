@@ -58,6 +58,15 @@ export const committeeDrawSelect = {
   committeeDrawTime: true,
 } as const;
 
+export const committeeDrawUserWiseSelect = {
+  id: true,
+  committeeId: true,
+  drawId: true,
+  userId: true,
+  userDrawAmountPaid: true,
+  fineAmountPaid: true,
+} as const;
+
 export type CommitteeSelectRecord = Prisma.CommitteeGetPayload<{
   select: typeof committeeSelectFields;
 }>;
@@ -72,6 +81,10 @@ export type CommitteeMemberWithUserRecord = Prisma.CommitteeMemberGetPayload<{
 
 export type CommitteeDrawRecordRaw = Prisma.CommitteeDrawGetPayload<{
   select: typeof committeeDrawSelect;
+}>;
+
+export type CommitteeDrawUserWiseRecordRaw = Prisma.UserWiseDrawGetPayload<{
+  select: typeof committeeDrawUserWiseSelect;
 }>;
 
 export async function findCommitteesByAdmin(
@@ -235,6 +248,18 @@ export function createScopedRepository(client: PrismaClientOrTx) {
         data: { committeeDrawAmount },
       });
     },
+    findCommitteeDrawList(committeeId: number): Promise<CommitteeDrawRecordRaw[]> {
+      return prisma.committeeDraw.findMany({
+        where: { committeeId },
+        select: committeeDrawSelect,
+      });
+    },
+    findUserWiseDrawListByCommitteeIdAndUserId(committeeId: number, userId: number): Promise<CommitteeDrawUserWiseRecordRaw[]> {
+      return prisma.userWiseDraw.findMany({
+        where: { committeeId, userId },
+        select: committeeDrawUserWiseSelect,
+      });
+    },
   };
 }
 
@@ -319,14 +344,9 @@ export async function runInTransaction<T>(
   }, options);
 }
 
-//#region Update Draw Amount
-// export async function updateCommitteeDrawAmount(
-//   id: number,
-//   committeeDrawAmount: number
-// ): Promise<CommitteeDrawRecordRaw> {
-//   return prisma.committeeDraw.update({
-//     where: { id },
-//     data: { committeeDrawAmount },
-//   });
-// }
-//#endregion
+export async function findUserWiseDrawListByCommitteeIdAndUserId(committeeId: number, userId: number): Promise<CommitteeDrawRecordRaw[]> {
+  return prisma.userWiseDraw.findMany({
+    where: { committeeId, userId },
+    select: committeeDrawSelect,
+  });
+}

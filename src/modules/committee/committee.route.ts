@@ -5,6 +5,7 @@ import { validator } from "../../utils/validator";
 import {
   ADD_COMMITTEE,
   ADD_COMMITTEE_MEMBER,
+  GET_COMMITTEE_ANALYSIS,
   GET_COMMITTEE_DRAW_LIST,
   GET_COMMITTEE_LIST,
   GET_COMMITTEE_MEMBER,
@@ -21,10 +22,12 @@ import {
   updateUserWiseDrawPaidSchema,
   getUserWiseDrawPaidSchema,
   updateDrawAmountSchema,
+  committeeAnalysisSchema,
 } from "./committee.schema";
 import {
   addCommitteeBodySchema,
   addCommitteeMemberBodySchema,
+  committeeAnalysisQuerySchema,
   committeeDrawQuerySchema,
   committeeListQuerySchema,
   committeeMemberQuerySchema,
@@ -101,6 +104,14 @@ const CommitteeRoutes: IRouteOptions<{
     schema: updateDrawAmountSchema,
     validatorCompiler: validator({ body: updateDrawAmountBodySchema }),
     method: API_METHODS.PATCH,
+  },
+  {
+    url: "/analysis",
+    handler: GET_COMMITTEE_ANALYSIS,
+    preHandler: [preUserHandler],
+    schema: committeeAnalysisSchema,
+    validatorCompiler: validator({ queryString: committeeAnalysisQuerySchema }),
+    method: API_METHODS.GET,
   },
 ];
 

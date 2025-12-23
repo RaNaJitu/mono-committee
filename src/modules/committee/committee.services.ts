@@ -15,32 +15,21 @@ import {
   CommitteeAnalysis,
   CommitteeAnalysisQuerystring,
   CommitteeDetails,
-  CommitteeDrawQuerystring,
-  CommitteeDrawRecord,
   CommitteeMemberWithDraw,
   CommitteeSummary,
   CommitteeTypeEnum,
-  UpdateDrawAmountBody,
-  UpdateDrawAmountResponse,
-  UserWiseDrawPaidBody,
-  UserWiseDrawRecord,
 } from "./committee.type";
 import {
   CommitteeDetailsRecord,
-  CommitteeDrawRecordRaw,
   CommitteeMemberWithUserRecord,
   CommitteeSelectRecord,
   committeeReadRepository,
   committeeSelectFields,
   findCommitteesByAdmin,
   findCommitteesForMember,
-  findCommitteeDrawList as findCommitteeDrawListRaw,
   findCommitteeMembersWithUser,
   runInTransaction,
-  findCommitteeMembersWithUserAndDraw,
-  updateUserWiseDrawCompleted as updateUserWiseDrawCompletedRepo,
 } from "./committee.repository";
-import { ForbiddenException } from "../../exception/forbidden.exception";
 
 
 const statusToPrisma: Record<CommitteeStatus, CommitteeStatusEnum> = {
@@ -131,44 +120,6 @@ const mapCommitteeMemberWithDraw = (
   };
 };
 
-const mapCommitteeDrawRecord = (
-  record: CommitteeDrawRecordRaw
-): CommitteeDrawRecord => ({
-  id: record.id,
-  committeeId: record.committeeId,
-  committeeDrawAmount: Number(record.committeeDrawAmount),
-  committeeDrawPaidAmount: Number(record.committeeDrawPaidAmount),
-  committeeDrawMinAmount: Number(record.committeeDrawMinAmount),
-  committeeDrawDate: record.committeeDrawDate,
-  committeeDrawTime: record.committeeDrawTime,
-});
-
-const mapUserWiseDrawRecord = (
-  record: UserWiseDrawRawRecord
-): UserWiseDrawRecord => {
-  if (!record.User) {
-    throw new Error("User relation is required for UserWiseDrawRecord");
-  }
-  return {
-    id: record.id,
-    committeeId: record.committeeId,
-    drawId: record.drawId,
-    userId: record.userId,
-    isDrawCompleted: record.isDrawCompleted ?? false,
-    user: {
-      id: record.User.id,
-      name: record.User.name,
-      phoneNo: record.User.phoneNo,
-      email: record.User.email || "",
-      role: String(record.User.role),
-      userDrawAmountPaid: Number(record.userDrawAmountPaid),
-      fineAmountPaid: Number(record.fineAmountPaid),
-    },
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
-  };
-};
-
 function assertAdmin(authUser: AuthenticatedUserPayload): void {
   if (authUser.role !== UserRole.ADMIN) {
     throw new BadRequestException(ADMIN_ONLY_ERROR);
@@ -237,79 +188,6 @@ async function getCommitteeDetailsOrThrow(
     });
   }
   return mapCommitteeDetails(record);
-}
-
-async function calculateFineAmountInternal(
-  committeeDetails: CommitteeDetails,
-  drawId: number
-): Promise<number> {
-  const today = new Date();
-  const draw = await committeeReadRepository.findCommitteeDrawById(drawId);
-
-  if (!draw?.committeeDrawDate) {
-    return 0;
-  }
-
-  const drawDate = new Date(draw.committeeDrawDate);
-  const todayOnly = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  );
-  const drawDateOnly = new Date(
-    drawDate.getFullYear(),
-    drawDate.getMonth(),
-    drawDate.getDate()
-  );
-
-  const diffTime = todayOnly.getTime() - drawDateOnly.getTime();
-  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-  if (diffDays > committeeDetails.extraDaysForFine) {
-    return (
-      (diffDays - committeeDetails.extraDaysForFine) * committeeDetails.fineAmount
-    );
-  }
-
-  return 0;
-}
-
-async function calculatePaidAmountByUserInternal(
-  committeeDetails: CommitteeDetails,
-  drawId: number
-): Promise<number> {
-  const draw = await committeeReadRepository.findCommitteeDrawById(drawId);
-
-  if (!draw || draw.committeeId !== committeeDetails.id) {
-    throw new BadRequestException({
-      message: "Draw not found",
-      description: "Unable to locate draw for committee",
-    });
-  }
-
-  const drawDate = new Date(draw.committeeDrawDate);
-  if (drawDate > new Date()) {
-    throw new BadRequestException({
-      message: "Draw not started yet",
-      description: "Draw not started yet",
-    });
-  }
-
-  const totalMembers = await committeeReadRepository.countCommitteeMembers(
-    committeeDetails.id
-  );
-  if (totalMembers === 0) {
-    throw new BadRequestException({
-      message: "No committee members",
-      description: "Committee has no members attached",
-    });
-  }
-
-  const drawAmount =
-    (committeeDetails.committeeAmount - toNumber(draw.committeeDrawAmount)) /
-    totalMembers;
-
-  return drawAmount;
 }
 
 export async function getAllCommitteeList(
@@ -485,237 +363,6 @@ export async function getCommitteeMemberList(
   return members.map(mapCommitteeMemberWithDraw);
 }
 
-export async function getCommitteeDrawListForUser(
-  _authUser: AuthenticatedUserPayload,
-  committeeId?: number
-): Promise<CommitteeDrawRecord[]> {
-  const id = ensureCommitteeIdProvided(committeeId);
-  const drawList = await findCommitteeDrawListRaw(id);
-  return drawList.map(mapCommitteeDrawRecord);
-}
-
-export async function updateUserWiseDrawPaidAmount(
-  authUser: AuthenticatedUserPayload,
-  payload: UserWiseDrawPaidBody
-): Promise<UserWiseDrawRecord> {
-  assertAdmin(authUser);
-
-  const committeeDetails: any = await getCommitteeDetailsOrThrow(
-    Number(payload.committeeId)
-  );
-
-  if (committeeDetails.createdBy !== Number(authUser.id)) {
-    throw new NotFoundException({
-      message: "Committee not found",
-      description: "Committee not found",
-    });
-  }
-  let drawAmount = 0;
-  let fineAmount = 0;
-  switch (committeeDetails.committeeType) {
-    case committeeDetails.committeeType === CommitteeTypeEnum.LOTTERY:
-      fineAmount = await calculateFineAmountInternal(
-        committeeDetails,
-        Number(payload.drawId)
-      );
-      drawAmount = await calculatePaidAmountByUserInternal(
-        committeeDetails,
-        Number(payload.drawId)
-      );
-      break;
-    
-      
-    // case committeeDetails.committeeType === committeeTypeEnum.LOTTERY:
-    //   fineAmount = await calculateFineAmountForLotteryInternal(
-    //     committeeDetails,
-    //     Number(payload.drawId)
-    //   );
-    //   drawAmount = await calculatePaidAmountByUserInternal(
-    //     committeeDetails,
-    //     Number(payload.drawId)
-    //   );
-    //   break;
-    
-    default:
-      throw new BadRequestException({
-        message: "Invalid committee type",
-        description: "Invalid committee type",
-      });
-  }
-
-  const record = await committeeReadRepository.upsertUserWiseDraw({
-    committeeId: Number(payload.committeeId),
-    drawId: Number(payload.drawId),
-    userId: Number(payload.userId),
-    userDrawAmountPaid: Number(drawAmount.toFixed(2)),
-    fineAmountPaid: Number(fineAmount.toFixed(2)),
-  });
-
-  return mapUserWiseDrawRecord(record);
-}
-
-export async function getUserWiseDrawPaidAmount(
-  _authUser: AuthenticatedUserPayload,
-  payload: CommitteeDrawQuerystring
-): Promise<UserWiseDrawRecord[]> {
-  // assertAdmin(authUser);
-
-  const committeeDetails = await getCommitteeDetailsOrThrow(
-    Number(payload.committeeId)
-  );
-  if (!committeeDetails) {
-    throw new NotFoundException({
-      message: "Committee not found",
-      description: "Committee not found",
-    });
-  }
-
-  const draw = await committeeReadRepository.findCommitteeDrawById(Number(payload.drawId));
-  if (!draw) {
-    throw new NotFoundException({
-      message: "Draw not found",
-      description: "Draw not found",
-    });
-  }
-  if(draw.committeeDrawDate > new Date()) {
-    throw new BadRequestException({
-      message: "Draw not started yet",
-      description: "Draw not started yet",
-    });
-  }
-
-  const records = await findCommitteeMembersWithUserAndDraw(
-    Number(payload.committeeId),
-    Number(payload.drawId)
-  );
-  // Transform CommitteeMember with nested user.UserWiseDraw to UserWiseDrawRecord[]
-  const result: UserWiseDrawRecord[] = [];
-  for (const member of records) {
-    const userWiseDraws: any = member.user.UserWiseDraw || [];
-    
-    if (userWiseDraws.length === 0) {
-      // If no UserWiseDraw record exists, create one with 0 amounts
-      result.push({
-        id: 0, // Placeholder ID since record doesn't exist
-        committeeId: Number(payload.committeeId),
-        drawId: Number(payload.drawId),
-        isDrawCompleted: userWiseDraws.length > 0 ? userWiseDraws[0].isDrawCompleted : false,
-        userId: member.userId,
-        user: {
-          id: member.user.id,
-          name: member.user.name,
-          phoneNo: member.user.phoneNo,
-          email: member.user.email || "",
-          role: String(member.user.role),
-          userDrawAmountPaid: 0,
-          fineAmountPaid: 0,
-        },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-    } else {
-      // Process existing UserWiseDraw records
-      for (const userWiseDraw of userWiseDraws) {
-        result.push({
-          id: userWiseDraw.id,
-          committeeId: userWiseDraw.committeeId,
-          drawId: userWiseDraw.drawId,
-          isDrawCompleted: userWiseDraw.isDrawCompleted,
-          userId: userWiseDraw.userId,
-          user: {
-            id: member.user.id,
-            name: member.user.name,
-            phoneNo: member.user.phoneNo,
-            email: member.user.email || "",
-            role: String(member.user.role),
-            userDrawAmountPaid: toNumber(userWiseDraw.userDrawAmountPaid),
-            fineAmountPaid: toNumber(userWiseDraw.fineAmountPaid),
-          },
-          createdAt: userWiseDraw.createdAt,
-          updatedAt: userWiseDraw.updatedAt,
-        });
-      }
-    }
-  }
-
-  return result;
-}
-
-
-//#region Update Draw Amount
-export async function updateDrawAmount(
-  authUser: AuthenticatedUserPayload,
-  payload: UpdateDrawAmountBody
-): Promise<UpdateDrawAmountResponse> {
-  assertAdmin(authUser);
-
-  const committeeDetails = await getCommitteeDetailsOrThrow(
-    Number(payload.committeeId)
-  );
-
-  if(!committeeDetails) {
-    throw new NotFoundException({
-      message: "Committee not found",
-      description: "Committee not found",
-    });
-  }
-  
-  if (committeeDetails.createdBy !== Number(authUser.id)) {
-    throw new ForbiddenException({
-      message: "You are not authorized to update draw amount",
-      description: "You are not authorized to update draw amount",
-    });
-  }
-
-  const draw: any  = await committeeReadRepository.findCommitteeDrawById(Number(payload.drawId));
-  if (!draw) {
-    throw new NotFoundException({
-      message: "Draw not found",
-      description: "Draw not found",
-    });
-  }
-  
-  if (draw.committeeDrawDate > new Date()) {
-    throw new BadRequestException({
-      message: "Draw not started yet",
-      description: "Draw not started yet",
-    });
-  }
-  
-  // Check if draw amount is already set (not zero)
-  const currentAmount = Number(draw.committeeDrawAmount);
-  if (currentAmount !== 0) {
-    throw new BadRequestException({
-      message: "Draw amount already updated",
-      description: "Draw amount cannot be updated once it has been set",
-    });
-  }
-
-  
-  // Validate that the new amount is not less than the minimum required amount
-  const minAmount = Number(draw.committeeDrawMinAmount);
-  const newAmount = Number(payload.amount);
-  if (newAmount < minAmount) {
-    throw new BadRequestException({
-      message: `Draw amount cannot be less than the ${minAmount}`,
-      description: `Draw amount must be at least ${minAmount}`,
-    });
-  }
-
-  const record = await committeeReadRepository.updateCommitteeDrawAmount(
-    Number(draw.id),
-    Number(payload.amount),
-  );
-
-  return {
-    id: record.id,
-    committeeId: record.committeeId,
-    drawId: record.id, // Use record.id as drawId since the record is the draw itself
-    amount: Number(record.committeeDrawAmount),
-  };
-}
-//#endregion
-
 
 //#region Get Committee Analysis
 export async function getCommitteeAnalysis(
@@ -764,37 +411,3 @@ export async function getCommitteeAnalysis(
 }
 //#endregion
 
-//#region User Wise Draw Completed  
-export async function updateUserWiseDrawCompleted(
-  authUser: AuthenticatedUserPayload,
-  payload: UserWiseDrawPaidBody
-): Promise<UserWiseDrawRecord> {
-  assertAdmin(authUser);
-
-  const committeeDetails = await getCommitteeDetailsOrThrow(Number(payload.committeeId));
-  if (committeeDetails.createdBy !== Number(authUser.id)) {
-    throw new ForbiddenException({
-      message: "You are not authorized to update draw amount",
-      description: "You are not authorized to update draw amount",
-    });
-  }
-
-  const userWiseDrawdata = await committeeReadRepository.findUserWiseDrawById(Number(payload.drawId), Number(payload.userId), Number(payload.committeeId));
-  if (!userWiseDrawdata) {
-    throw new NotFoundException({
-      message: "First Mark Paid Payment",
-      description: "First Mark Paid Payment",
-    });
-  }
-
-
-
-  const record = await updateUserWiseDrawCompletedRepo(
-    Number(payload.drawId), 
-    Number(payload.userId), 
-    Number(payload.committeeId),
-    true // isDrawCompleted - marking draw as completed
-  );
-  return mapUserWiseDrawRecord(record);
-}
-//#endregion

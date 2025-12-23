@@ -4,18 +4,6 @@ export interface CommitteeMemberQuerystring {
   committeeId: number;
 }
 
-export interface CommitteeDrawQuerystring {
-  committeeId: number;
-  drawId: number;
-}
-
-export interface UserWiseDrawPaidBody {
-  committeeId: number;
-  drawId: number;
-  userDrawAmountPaid: number;
-  userId: number;
-  fineAmountPaid: number;
-}
 
 export interface AddCommitteeRequestBody {
   committeeName: string;
@@ -139,19 +127,6 @@ export interface UserWiseDrawRecord {
 }
 
 
-export interface UpdateDrawAmountBody {
-  committeeId: number;
-  drawId: number;
-  amount: number;
-}
-
-export interface UpdateDrawAmountResponse {
-  id: number;
-  committeeId: number;
-  drawId: number;
-  amount: number;
-}
-
 export interface CommitteeAnalysisQuerystring {
   committeeId: number;
 }
@@ -175,8 +150,4 @@ export interface CommitteeAnalysis {
     noOfDrawsCompleted: number;
     totalDraws: number;
   };
-}
-
-export interface UserWiseDrawCompletedBody extends UserWiseDrawPaidBody {
-  isDrawCompleted: boolean;
 }

@@ -55,6 +55,12 @@ const statusFromPrisma: Record<CommitteeStatusEnum, CommitteeStatus> = {
   [CommitteeStatusEnum.COMPLETED]: CommitteeStatus.COMPLETED,
 };
 
+// Map Prisma CommitteeTypeEnum to TypeScript CommitteeTypeEnum
+// Prisma enum values match TypeScript enum string values
+const committeeTypeFromPrisma = (prismaType: string): CommitteeTypeEnum => {
+  return prismaType as CommitteeTypeEnum;
+};
+
 const ADMIN_ONLY_ERROR = {
   message: "You are not authorized to perform this action",
   description: "Only committee admins can execute this operation",
@@ -87,7 +93,7 @@ const mapCommitteeSummary = (
   fineAmount: toOptionalNumber(record.fineAmount),
   extraDaysForFine: record.extraDaysForFine ?? undefined,
   startCommitteeDate: record.startCommitteeDate ?? undefined,
-  committeeType: record.committeeType,
+  committeeType: committeeTypeFromPrisma(record.committeeType as string),
 });
 
 const mapCommitteeDetails = (

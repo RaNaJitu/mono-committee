@@ -2,7 +2,6 @@ import { Prisma, PrismaClient, CommitteeStatusEnum } from "@prisma/client";
 import { prisma } from "../../utils/prisma";
 import {
   AddCommitteeMemberInput,
-  AddCommitteePayload,
   CommitteeMemberRecord,
 } from "./committee.type";
 
@@ -110,15 +109,6 @@ export async function findCommitteesForMember(
   });
 
   return memberCommittees.map(({ committee }) => committee);
-}
-
-export async function createCommitteeRecord(
-  data: AddCommitteePayload
-): Promise<CommitteeSelectRecord> {
-  return prisma.committee.create({
-    data,
-    select: committeeSelectFields,
-  });
 }
 
 export function createScopedRepository(client: PrismaClientOrTx) {
@@ -281,61 +271,6 @@ export async function findCommitteeMembersWithUser(
   });
 }
 
-export async function findCommitteeMembersWithUserAndDraw(
-  committeeId: number,
-  drawId: number
-) {
-  // Query UserWiseDraw directly since it's not a relation on CommitteeMember
-  // return prisma.userWiseDraw.findMany({
-  //   where: {
-  //     committeeId,
-  //     drawId
-  //   },
-  //   include: {
-  //     User: true,
-  //     Committee: true,
-  //     CommitteeDraw: true,
-  //   },
-  //   orderBy: {
-  //     userId: 'asc',
-  //   },
-  // });
-
-  return prisma.committeeMember.findMany({
-    where: { committeeId },
-    include: {
-      user: {
-        include: {
-          UserWiseDraw: {
-            where: { committeeId, drawId },
-            include: {
-              Committee: true,
-              CommitteeDraw: true
-            }
-          }
-        }
-      }
-    },
-    orderBy: {
-      userId: "asc"
-    }
-  });
-  
-}
-
-
-export async function findCommitteeDrawList(
-  committeeId: number
-): Promise<CommitteeDrawRecordRaw[]> {
-  return prisma.committeeDraw.findMany({
-    where: { committeeId },
-    select: committeeDrawSelect,
-    orderBy: {
-      committeeDrawDate: "asc",
-    },
-  });
-}
-
 type TransactionOptions = Parameters<typeof prisma.$transaction>[1];
 
 export async function runInTransaction<T>(
@@ -349,18 +284,4 @@ export async function runInTransaction<T>(
     const repository = createScopedRepository(tx);
     return handler({ repo: repository, tx });
   }, options);
-}
-
-export async function findUserWiseDrawListByCommitteeIdAndUserId(committeeId: number, userId: number): Promise<CommitteeDrawRecordRaw[]> {
-  return prisma.userWiseDraw.findMany({
-    where: { committeeId, userId },
-    select: committeeDrawSelect,
-  });
-}
-
-export async function findUserWiseDrawById(drawId: number, userId: number, committeeId: number): Promise<CommitteeDrawUserWiseRecordRaw | null> {
-  return prisma.userWiseDraw.findUnique({
-    where: { id: drawId, userId, committeeId },
-    select: committeeDrawUserWiseSelect,
-  });
 }

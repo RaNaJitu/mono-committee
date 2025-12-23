@@ -55,12 +55,6 @@ const ADMIN_ONLY_ERROR = {
   description: "Only committee admins can execute this operation",
 };
 
-type UserWiseDrawRawRecord = Awaited<
-  ReturnType<typeof committeeReadRepository["upsertUserWiseDraw"]>
-> & {
-  isDrawCompleted?: boolean;
-};
-
 const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>
   value === null || value === undefined ? 0 : Number(value);
 

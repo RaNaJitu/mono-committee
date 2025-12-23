@@ -171,3 +171,22 @@ export const committeeAnalysisQuerySchema = zod.object({
     .transform((val) => Number(val)),
 });
 //#endregion
+
+//#region User Wise Draw Completed
+export const userWiseDrawCompletedBodySchema = zod.object({
+  committeeId: zod
+    .number({ message: "Committee ID must be a number" })
+    .int("Committee ID must be an integer")
+    .positive("Committee ID must be positive"),
+  drawId: zod
+    .number({ message: "Draw ID must be a number" })
+    .int("Draw ID must be an integer")
+    .positive("Draw ID must be positive"),
+  userId: zod
+    .number({ message: "User ID must be a number" })
+    .int("User ID must be an integer")
+    .positive("User ID must be positive"),
+  isDrawCompleted: zod
+    .boolean({ message: "Is draw completed must be a boolean" }),
+});
+//#endregion

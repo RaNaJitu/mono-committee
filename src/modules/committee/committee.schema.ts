@@ -21,6 +21,7 @@ const committeeListResponse = {
             fineAmount: { type: "number", nullable: true },
             extraDaysForFine: { type: "integer", nullable: true },
             startCommitteeDate: { type: "string", format: "date-time", nullable: true },
+            committeeType: { type: "string" },
           },
         },
       },
@@ -430,6 +431,7 @@ const userWiseDrawPaidGetResponse = {
             committeeId: { type: "integer" },
             drawId: { type: "integer" },
             userId: { type: "integer" },
+            isDrawCompleted: { type: "boolean" },
             user: {
               type: "object",
               properties: {
@@ -581,5 +583,40 @@ export const committeeAnalysisSchema = {
   400: fmt.getSwaggerErrorResponse(400, "Bad Request"),
   401: fmt.getSwaggerErrorResponse(401, "Unauthorized"),
   500: fmt.getSwaggerErrorResponse(500, "Internal Server Error"),
+};
+//#endregion
+
+
+//#region User Wise Draw Completed
+const userWiseDrawCompletedBody = {
+  type: "object",
+  required: ["committeeId", "drawId", "userId", "isDrawCompleted"],
+  properties: {
+    committeeId: { type: "integer", minimum: 1, description: "Committee ID" },
+    drawId: { type: "integer", minimum: 1, description: "Draw ID" },
+    userId: { type: "integer", minimum: 1, description: "User ID" },
+    isDrawCompleted: { type: "boolean", description: "Is draw completed" },
+  },
+};
+
+const userWiseDrawCompletedResponse = {
+  200: {
+    description: "User draw completed updated successfully",
+    type: "object",
+    properties: {
+      data: { type: "object", properties: { id: { type: "integer" }, committeeId: { type: "integer" }, drawId: { type: "integer" }, userId: { type: "integer" }, isDrawCompleted: { type: "boolean" } } },
+    },
+  },
+};
+
+export const userWiseDrawCompletedSchema = {
+  description: "Update user-wise draw completed",
+  tags: ["Committee"],
+  summary: "User Wise Draw Completed",
+  body: userWiseDrawCompletedBody,
+  security: [{ bearerAuth: [] }],
+  response: {
+    ...userWiseDrawCompletedResponse,
+  },
 };
 //#endregion

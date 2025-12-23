@@ -4,9 +4,9 @@ import {
     AuthenticatedUserPayload,
     ProfileQuerystring,
 } from "../auth/auth.types";
-import { addCommitteeMemberWithWorkflow, createCommitteeForAdmin, getAllCommitteeList, getCommitteeAnalysis, getCommitteeDrawListForUser, getCommitteeMemberList, getUserWiseDrawPaidAmount, updateDrawAmount, updateUserWiseDrawPaidAmount } from "./committee.services";
+import { addCommitteeMemberWithWorkflow, createCommitteeForAdmin, getAllCommitteeList, getCommitteeAnalysis, getCommitteeDrawListForUser, getCommitteeMemberList, getUserWiseDrawPaidAmount, updateDrawAmount, updateUserWiseDrawCompleted, updateUserWiseDrawPaidAmount } from "./committee.services";
 import { getDataFromRequestContext } from "../auth/helper";
-import { CommitteeDrawQuerystring, CommitteeMemberQuerystring, UserWiseDrawPaidBody, AddCommitteeRequestBody, AddCommitteeMemberBody, UpdateDrawAmountBody, CommitteeAnalysisQuerystring } from "./committee.type";
+import { CommitteeDrawQuerystring, CommitteeMemberQuerystring, UserWiseDrawPaidBody, AddCommitteeRequestBody, AddCommitteeMemberBody, UpdateDrawAmountBody, CommitteeAnalysisQuerystring, UserWiseDrawCompletedBody } from "./committee.type";
 
 export const GET_COMMITTEE_LIST = async (
     request: FastifyRequest<{ Querystring: ProfileQuerystring }>,
@@ -201,3 +201,24 @@ export const GET_COMMITTEE_ANALYSIS = async (
     )
   );
 };
+
+//#region User Wise Draw Completed
+export const USER_WISE_DRAW_COMPLETED = async (
+  request: FastifyRequest<{
+    Body: UserWiseDrawCompletedBody
+  }>,
+  reply: FastifyReply
+): Promise<FastifyReply> => {
+  const authUser = getDataFromRequestContext<AuthenticatedUserPayload>(
+    request,
+    "data"
+  );
+  const data = await updateUserWiseDrawCompleted(authUser, request.body);
+  return reply.status(200).send(
+    fmt.formatResponse(
+      data || [],
+      "Update User Wise Draw Completed!"
+    )
+  );
+};
+//#endregion

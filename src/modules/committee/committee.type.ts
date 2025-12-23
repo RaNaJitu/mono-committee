@@ -36,6 +36,12 @@ export interface AddCommitteeMemberBody {
   email?: string;
 }
 
+export enum CommitteeTypeEnum {
+  COUNTER = "COUNTER",
+  NORMAL = "NORMAL",
+  LOTTERY = "LOTTERY",
+}
+
 export interface CommitteeSummary {
   id: number;
   committeeName: string;
@@ -47,6 +53,7 @@ export interface CommitteeSummary {
   fineAmount?: number;
   extraDaysForFine?: number;
   startCommitteeDate?: Date | null;
+  committeeType: CommitteeTypeEnum;
 }
 
 export interface CommitteeMemberWithDraw {
@@ -117,6 +124,7 @@ export interface UserWiseDrawRecord {
   committeeId: number;
   drawId: number;
   userId: number;
+  isDrawCompleted: boolean;
   user: {
     id: number;
     name: string;
@@ -167,4 +175,8 @@ export interface CommitteeAnalysis {
     noOfDrawsCompleted: number;
     totalDraws: number;
   };
+}
+
+export interface UserWiseDrawCompletedBody extends UserWiseDrawPaidBody {
+  isDrawCompleted: boolean;
 }

@@ -21,6 +21,12 @@ enum CommitteeStatusEnum {
   COMPLETED  @map("2")
 }
 
+enum CommitteeTypeEnum {
+  COUNTER
+  NORMAL
+  LOTTERY
+}
+
 
 model User {
   id                      Int                   @id @default(autoincrement())
@@ -63,6 +69,7 @@ model Session {
 model Committee {
   id                      Int                   @id @default(autoincrement())
   committeeName           String
+  committeeType           CommitteeTypeEnum     @default(NORMAL)
   committeeAmount         Decimal               @db.Decimal(15, 2)
   commissionMaxMember     Int                   @default(20) 
   committeeStatus         CommitteeStatusEnum   @default(INACTIVE) // 0 = Inactive, 1 = Active, 2 = Completed
@@ -124,6 +131,7 @@ model UserWiseDraw {
   userDrawAmountPaid      Decimal               @db.Decimal(15, 2)  @default(0)
   fineAmountPaid          Decimal               @db.Decimal(15, 2)  @default(0)
   userId                  Int
+  isDrawCompleted         Boolean               @default(false)
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
   User                    User                  @relation(fields: [userId], references: [id])

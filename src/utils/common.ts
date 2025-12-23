@@ -110,3 +110,10 @@ export function getCurrentDateFormatted(): string {
   const seconds = String(date.getSeconds()).padStart(2, "0");
   return `${day}${month}${year}_${hours}${minutes}${seconds}`;
 }
+
+
+// export const committeeTypeEnum = {
+//   COUNTER: "COUNTER",
+//   NORMAL: "NORMAL",
+//   LOTTERY: "LOTTERY",
+// };

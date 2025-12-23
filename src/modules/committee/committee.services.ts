@@ -19,6 +19,7 @@ import {
   CommitteeDrawRecord,
   CommitteeMemberWithDraw,
   CommitteeSummary,
+  CommitteeTypeEnum,
   UpdateDrawAmountBody,
   UpdateDrawAmountResponse,
   UserWiseDrawPaidBody,
@@ -37,8 +38,10 @@ import {
   findCommitteeMembersWithUser,
   runInTransaction,
   findCommitteeMembersWithUserAndDraw,
+  updateUserWiseDrawCompleted as updateUserWiseDrawCompletedRepo,
 } from "./committee.repository";
 import { ForbiddenException } from "../../exception/forbidden.exception";
+
 
 const statusToPrisma: Record<CommitteeStatus, CommitteeStatusEnum> = {
   [CommitteeStatus.INACTIVE]: CommitteeStatusEnum.INACTIVE,
@@ -59,7 +62,9 @@ const ADMIN_ONLY_ERROR = {
 
 type UserWiseDrawRawRecord = Awaited<
   ReturnType<typeof committeeReadRepository["upsertUserWiseDraw"]>
->;
+> & {
+  isDrawCompleted?: boolean;
+};
 
 const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>
   value === null || value === undefined ? 0 : Number(value);
@@ -82,6 +87,7 @@ const mapCommitteeSummary = (
   fineAmount: toOptionalNumber(record.fineAmount),
   extraDaysForFine: record.extraDaysForFine ?? undefined,
   startCommitteeDate: record.startCommitteeDate ?? undefined,
+  committeeType: record.committeeType,
 });
 
 const mapCommitteeDetails = (
@@ -142,6 +148,7 @@ const mapUserWiseDrawRecord = (
     committeeId: record.committeeId,
     drawId: record.drawId,
     userId: record.userId,
+    isDrawCompleted: record.isDrawCompleted ?? false,
     user: {
       id: record.User.id,
       name: record.User.name,
@@ -487,7 +494,7 @@ export async function updateUserWiseDrawPaidAmount(
 ): Promise<UserWiseDrawRecord> {
   assertAdmin(authUser);
 
-  const committeeDetails = await getCommitteeDetailsOrThrow(
+  const committeeDetails: any = await getCommitteeDetailsOrThrow(
     Number(payload.committeeId)
   );
 
@@ -497,15 +504,38 @@ export async function updateUserWiseDrawPaidAmount(
       description: "Committee not found",
     });
   }
-
-  const fineAmount = await calculateFineAmountInternal(
-    committeeDetails,
-    Number(payload.drawId)
-  );
-  const drawAmount = await calculatePaidAmountByUserInternal(
-    committeeDetails,
-    Number(payload.drawId)
-  );
+  let drawAmount = 0;
+  let fineAmount = 0;
+  switch (committeeDetails.committeeType) {
+    case committeeDetails.committeeType === CommitteeTypeEnum.LOTTERY:
+      fineAmount = await calculateFineAmountInternal(
+        committeeDetails,
+        Number(payload.drawId)
+      );
+      drawAmount = await calculatePaidAmountByUserInternal(
+        committeeDetails,
+        Number(payload.drawId)
+      );
+      break;
+    
+      
+    // case committeeDetails.committeeType === committeeTypeEnum.LOTTERY:
+    //   fineAmount = await calculateFineAmountForLotteryInternal(
+    //     committeeDetails,
+    //     Number(payload.drawId)
+    //   );
+    //   drawAmount = await calculatePaidAmountByUserInternal(
+    //     committeeDetails,
+    //     Number(payload.drawId)
+    //   );
+    //   break;
+    
+    default:
+      throw new BadRequestException({
+        message: "Invalid committee type",
+        description: "Invalid committee type",
+      });
+  }
 
   const record = await committeeReadRepository.upsertUserWiseDraw({
     committeeId: Number(payload.committeeId),
@@ -555,7 +585,7 @@ export async function getUserWiseDrawPaidAmount(
   // Transform CommitteeMember with nested user.UserWiseDraw to UserWiseDrawRecord[]
   const result: UserWiseDrawRecord[] = [];
   for (const member of records) {
-    const userWiseDraws = member.user.UserWiseDraw || [];
+    const userWiseDraws: any = member.user.UserWiseDraw || [];
     
     if (userWiseDraws.length === 0) {
       // If no UserWiseDraw record exists, create one with 0 amounts
@@ -563,6 +593,7 @@ export async function getUserWiseDrawPaidAmount(
         id: 0, // Placeholder ID since record doesn't exist
         committeeId: Number(payload.committeeId),
         drawId: Number(payload.drawId),
+        isDrawCompleted: userWiseDraws.length > 0 ? userWiseDraws[0].isDrawCompleted : false,
         userId: member.userId,
         user: {
           id: member.user.id,
@@ -583,6 +614,7 @@ export async function getUserWiseDrawPaidAmount(
           id: userWiseDraw.id,
           committeeId: userWiseDraw.committeeId,
           drawId: userWiseDraw.drawId,
+          isDrawCompleted: userWiseDraw.isDrawCompleted,
           userId: userWiseDraw.userId,
           user: {
             id: member.user.id,
@@ -726,3 +758,37 @@ export async function getCommitteeAnalysis(
 }
 //#endregion
 
+//#region User Wise Draw Completed  
+export async function updateUserWiseDrawCompleted(
+  authUser: AuthenticatedUserPayload,
+  payload: UserWiseDrawPaidBody
+): Promise<UserWiseDrawRecord> {
+  assertAdmin(authUser);
+
+  const committeeDetails = await getCommitteeDetailsOrThrow(Number(payload.committeeId));
+  if (committeeDetails.createdBy !== Number(authUser.id)) {
+    throw new ForbiddenException({
+      message: "You are not authorized to update draw amount",
+      description: "You are not authorized to update draw amount",
+    });
+  }
+
+  const userWiseDrawdata = await committeeReadRepository.findUserWiseDrawById(Number(payload.drawId), Number(payload.userId), Number(payload.committeeId));
+  if (!userWiseDrawdata) {
+    throw new NotFoundException({
+      message: "First Mark Paid Payment",
+      description: "First Mark Paid Payment",
+    });
+  }
+
+
+
+  const record = await updateUserWiseDrawCompletedRepo(
+    Number(payload.drawId), 
+    Number(payload.userId), 
+    Number(payload.committeeId),
+    true // isDrawCompleted - marking draw as completed
+  );
+  return mapUserWiseDrawRecord(record);
+}
+//#endregion

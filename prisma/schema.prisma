@@ -39,12 +39,22 @@ model User {
   salt                    String
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
-
-
+  createdBy               Int?
+  updatedBy               Int?
+  creator                 User?                 @relation("UserCreator", fields: [createdBy], references: [id])
+  updater                 User?                 @relation("UserUpdater", fields: [updatedBy], references: [id])
+  createdUsers            User[]                @relation("UserCreator")
+  updatedUsers            User[]                @relation("UserUpdater")
   Committee               Committee[]
   CommitteeMember         CommitteeMember[]
   // CommitteeDraw           CommitteeDraw[]
   UserWiseDraw            UserWiseDraw[]
+
+
+  @@index([id], name: "idxId")
+  @@index([name], name: "idxName")
+  @@index([phoneNo], name: "idxPhoneNo")
+
 }
 
 
@@ -76,12 +86,14 @@ model Committee {
   noOfMonths              Int
   startCommitteeDate      DateTime?
   endCommitteeDate        DateTime?
+  lotteryAmount           Decimal               @db.Decimal(15, 2) @default(0)
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
   createdBy               Int
   updatedBy               Int
   extraDaysForFine        Int?                   @default(0)
   fineAmount              Decimal?               @db.Decimal(15, 2)  @default(10)
+  fineStartDate           DateTime?
   User                    User                  @relation(fields: [createdBy], references: [id])
 
   CommitteeMember         CommitteeMember[]

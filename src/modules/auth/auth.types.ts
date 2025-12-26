@@ -12,6 +12,7 @@ export interface RegisterUserRequestBody {
   password: string;
   role: UserRoleEnum;
   name: string;
+  createdBy?: number;
 }
 
 export type RegisterUserInput = RegisterUserRequestBody;

@@ -77,6 +77,8 @@ const mapCommitteeSummary = (
   extraDaysForFine: record.extraDaysForFine ?? undefined,
   startCommitteeDate: record.startCommitteeDate ?? undefined,
   committeeType: committeeTypeFromPrisma(record.committeeType as string),
+  fineStartDate: record.fineStartDate ?? null,
+  lotteryAmount: Number(record.lotteryAmount),
 });
 
 const mapCommitteeDetails = (
@@ -139,6 +141,7 @@ function buildRegisterPayload(
     password: body.password ?? "admin123",
     role: UserRole.USER,
     name: body.name ?? body.phoneNo,
+    createdBy: body.createdBy,
   };
 }
 
@@ -200,7 +203,12 @@ export async function createCommitteeForAdmin(
   body: AddCommitteeRequestBody
 ): Promise<CommitteeSummary> {
   assertAdmin(authUser);
-
+  if (body.committeeType === CommitteeTypeEnum.LOTTERY && (!body.lotteryAmount || body.lotteryAmount <= 0)) {
+    throw new BadRequestException({
+      message: "Lottery amount is required",
+      description: "Lottery amount is required",
+    });
+  }
   try {
     // Calculate end committee date from start date and number of months
     // Zod validation ensures startCommitteeDate is already a Date object
@@ -225,6 +233,8 @@ export async function createCommitteeForAdmin(
           extraDaysForFine: body.extraDaysForFine,
           startCommitteeDate: body.startCommitteeDate,
           endCommitteeDate: endCommitteeDate,
+          committeeType: body.committeeType,
+          fineStartDate: body.fineStartDate,
         };
 
         // Create committee using transaction client
@@ -269,7 +279,7 @@ export async function addCommitteeMemberWithWorkflow(
       const existingUser = await tx.user.findUnique({
         where: { phoneNo: body.phoneNo },
       });
-
+      body.createdBy = authUser.id;
       // Create user if doesn't exist - uses transaction client
       const user =
         existingUser ?? (await RegisterUser(tx, buildRegisterPayload(body)));

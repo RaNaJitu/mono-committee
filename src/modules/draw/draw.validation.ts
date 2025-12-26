@@ -34,23 +34,6 @@ export const addCommitteeBodySchema = zod.object({
     .refine((date) => !isNaN(date.getTime()), {
       message: "Start committee date must be a valid date",
     }),
-  committeeType: zod
-    .string({ message: "Committee type must be a string" })
-    .min(1, "Committee type is required")
-    .max(100, "Committee type cannot exceed 100 characters"),
-    // .enum(CommitteeTypeEnum, {
-    //   message: "Committee type must be a valid committee type",
-    // }),
-    
-  lotteryAmount: zod
-    .number({ message: "Lottery amount must be a number" })
-    .positive("Lottery amount must be positive")
-    .optional(),
-  fineStartDate: zod
-    .coerce.date({ message: "Fine start date must be a valid date" })
-    .refine((date) => !isNaN(date.getTime()), {
-      message: "Fine start date must be a valid date",
-    }),
 });
 
 export const addCommitteeMemberBodySchema = zod.object({
@@ -95,6 +78,28 @@ export const addCommitteeMemberBodySchema = zod.object({
     .optional(),
 });
 
+export const userWiseDrawPaidBodySchema = zod.object({
+  committeeId: zod
+    .number({ message: "Committee ID must be a number" })
+    .int("Committee ID must be an integer")
+    .positive("Committee ID must be positive"),
+  drawId: zod
+    .number({ message: "Draw ID must be a number" })
+    .int("Draw ID must be an integer")
+    .positive("Draw ID must be positive"),
+  userId: zod
+    .number({ message: "User ID must be a number" })
+    .int("User ID must be an integer")
+    .positive("User ID must be positive"),
+  userDrawAmountPaid: zod
+    .number({ message: "User draw amount paid must be a number" })
+    .nonnegative("User draw amount paid cannot be negative")
+    .optional(),
+  fineAmountPaid: zod
+    .number({ message: "Fine amount paid must be a number" })
+    .nonnegative("Fine amount paid cannot be negative")
+    .optional(),
+});
 
 // Query Schemas
 export const committeeMemberQuerySchema = zod.object({
@@ -104,6 +109,17 @@ export const committeeMemberQuerySchema = zod.object({
     .transform((val) => Number(val)),
 });
 
+export const committeeDrawQuerySchema = zod.object({
+  committeeId: zod
+    .string({ message: "Committee ID must be provided in query" })
+    .regex(/^\d+$/, "Committee ID must be a valid number")
+    .transform((val) => Number(val)),
+  drawId: zod
+    .string({ message: "Draw ID must be provided in query" })
+    .regex(/^\d+$/, "Draw ID must be a valid number")
+    .transform((val) => Number(val))
+    .optional(),
+});
 
 export const committeeListQuerySchema = zod.object({
   page: zod
@@ -118,6 +134,34 @@ export const committeeListQuerySchema = zod.object({
     .optional(),
 });
 
+export const userWiseDrawPaidQuerySchema = zod.object({
+  committeeId: zod
+    .string({ message: "Committee ID must be provided in query" })
+    .regex(/^\d+$/, "Committee ID must be a valid number")
+    .transform((val) => Number(val)),
+  drawId: zod
+    .string({ message: "Draw ID must be provided in query" })
+    .regex(/^\d+$/, "Draw ID must be a valid number")
+    .transform((val) => Number(val)),
+});
+
+
+
+//#region Update Draw Amount
+export const updateDrawAmountBodySchema = zod.object({
+  committeeId: zod
+    .number({ message: "Committee ID must be a number" })
+    .int("Committee ID must be an integer")
+    .positive("Committee ID must be positive"),
+  drawId: zod
+    .number({ message: "Draw ID must be a number" })
+    .int("Draw ID must be an integer")
+    .positive("Draw ID must be positive"),
+  amount: zod
+    .number({ message: "Amount must be a number" })
+    .nonnegative("Amount cannot be negative"),
+});
+//#endregion
 
 //#region Get Committee Analysis
 export const committeeAnalysisQuerySchema = zod.object({
@@ -128,3 +172,21 @@ export const committeeAnalysisQuerySchema = zod.object({
 });
 //#endregion
 
+//#region User Wise Draw Completed
+export const userWiseDrawCompletedBodySchema = zod.object({
+  committeeId: zod
+    .number({ message: "Committee ID must be a number" })
+    .int("Committee ID must be an integer")
+    .positive("Committee ID must be positive"),
+  drawId: zod
+    .number({ message: "Draw ID must be a number" })
+    .int("Draw ID must be an integer")
+    .positive("Draw ID must be positive"),
+  userId: zod
+    .number({ message: "User ID must be a number" })
+    .int("User ID must be an integer")
+    .positive("User ID must be positive"),
+  isDrawCompleted: zod
+    .boolean({ message: "Is draw completed must be a boolean" }),
+});
+//#endregion

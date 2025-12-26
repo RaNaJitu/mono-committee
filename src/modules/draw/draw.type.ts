@@ -4,6 +4,18 @@ export interface CommitteeMemberQuerystring {
   committeeId: number;
 }
 
+export interface CommitteeDrawQuerystring {
+  committeeId: number;
+  drawId: number;
+}
+
+export interface UserWiseDrawPaidBody {
+  committeeId: number;
+  drawId: number;
+  userDrawAmountPaid: number;
+  userId: number;
+  fineAmountPaid: number;
+}
 
 export interface AddCommitteeRequestBody {
   committeeName: string;
@@ -14,9 +26,6 @@ export interface AddCommitteeRequestBody {
   fineAmount?: number;
   extraDaysForFine?: number;
   endCommitteeDate?: Date | null;
-  committeeType: CommitteeTypeEnum;
-  lotteryAmount?: number;
-  fineStartDate: Date ;
 }
 
 export interface AddCommitteeMemberBody {
@@ -25,7 +34,6 @@ export interface AddCommitteeMemberBody {
   phoneNo: string;
   password?: string;
   email?: string;
-  createdBy?: number;
 }
 
 export enum CommitteeTypeEnum {
@@ -46,8 +54,6 @@ export interface CommitteeSummary {
   extraDaysForFine?: number;
   startCommitteeDate?: Date | null;
   committeeType: CommitteeTypeEnum;
-  fineStartDate: Date | null;
-  lotteryAmount: number;
 }
 
 export interface CommitteeMemberWithDraw {
@@ -87,8 +93,6 @@ export interface AddCommitteePayload {
   fineAmount?: number;
   extraDaysForFine?: number;
   endCommitteeDate?: Date | null;
-  committeeType: CommitteeTypeEnum;
-  fineStartDate?: Date | null;
 }
 
 export interface CommitteeMemberRecord {
@@ -108,6 +112,9 @@ export interface CommitteeDetails {
   fineAmount: number;
   extraDaysForFine: number;
   startCommitteeDate?: Date | null;
+  committeeType: CommitteeTypeEnum;
+  fineStartDate: Date | null;
+  lotteryAmount: number;
 }
 
 export interface AddCommitteeMemberInput {
@@ -120,9 +127,9 @@ export interface UserWiseDrawRecord {
   committeeId: number;
   drawId: number;
   userId: number;
-  isDrawCompleted: boolean;
   user: {
     id: number;
+    isDrawCompleted: boolean;
     name: string;
     phoneNo: string;
     email: string;
@@ -134,6 +141,19 @@ export interface UserWiseDrawRecord {
   updatedAt: Date;
 }
 
+
+export interface UpdateDrawAmountBody {
+  committeeId: number;
+  drawId: number;
+  amount: number;
+}
+
+export interface UpdateDrawAmountResponse {
+  id: number;
+  committeeId: number;
+  drawId: number;
+  amount: number;
+}
 
 export interface CommitteeAnalysisQuerystring {
   committeeId: number;
@@ -158,4 +178,8 @@ export interface CommitteeAnalysis {
     noOfDrawsCompleted: number;
     totalDraws: number;
   };
+}
+
+export interface UserWiseDrawCompletedBody extends UserWiseDrawPaidBody {
+  isDrawCompleted: boolean;
 }

@@ -1,4 +1,5 @@
 import { fmt } from "../../config";
+import { CommitteeTypeEnum } from "./committee.type";
 
 // Committee List Response
 const committeeListResponse = {
@@ -22,6 +23,8 @@ const committeeListResponse = {
             extraDaysForFine: { type: "integer", nullable: true },
             startCommitteeDate: { type: "string", format: "date-time", nullable: true },
             committeeType: { type: "string" },
+            fineStartDate: { type: "string", format: "date-time" },
+            lotteryAmount: { type: "number", nullable: true },
           },
         },
       },
@@ -73,6 +76,21 @@ const addCommitteeBody = {
       format: "date-time",
       nullable: true,
       description: "Start date for the committee (optional)",
+    },
+    lotteryAmount: {
+      type: "number",
+      minimum: 0,
+      description: "Lottery amount (optional)",
+    },
+    committeeType: {
+      type: "string",
+      enum: Object.values(CommitteeTypeEnum),
+      description: "Type of the committee",
+    },
+    fineStartDate: {
+      type: "string",
+      format: "date-time",
+      description: "Fine start date for the committee",
     },
   },
 };

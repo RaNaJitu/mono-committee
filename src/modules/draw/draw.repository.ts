@@ -3,7 +3,7 @@ import { prisma } from "../../utils/prisma";
 import {
   AddCommitteeMemberInput,
   CommitteeMemberRecord,
-} from "./committee.type";
+} from "./draw.type";
 
 export type PrismaClientOrTx = PrismaClient | Prisma.TransactionClient;
 
@@ -19,13 +19,13 @@ export const committeeSelectFields = {
   extraDaysForFine: true,
   startCommitteeDate: true,
   committeeType: true,
-  fineStartDate: true,
-  lotteryAmount: true,
 } as const;
 
 export const committeeDetailsSelect = {
   ...committeeSelectFields,
   createdBy: true,
+  fineStartDate: true,
+  lotteryAmount: true,
 } as const;
 
 export const committeeMemberInclude = {
@@ -67,6 +67,7 @@ export const committeeDrawUserWiseSelect = {
   userId: true,
   userDrawAmountPaid: true,
   fineAmountPaid: true,
+  isDrawCompleted: true,
 } as const;
 
 export type CommitteeSelectRecord = Prisma.CommitteeGetPayload<{
@@ -245,6 +246,9 @@ export function createScopedRepository(client: PrismaClientOrTx) {
       return prisma.committeeDraw.findMany({
         where: { committeeId },
         select: committeeDrawSelect,
+        orderBy: {
+          committeeDrawDate: "asc",
+        },
       });
     },
     findUserWiseDrawListByCommitteeIdAndUserId(committeeId: number, userId: number): Promise<CommitteeDrawUserWiseRecordRaw[]> {
@@ -255,7 +259,25 @@ export function createScopedRepository(client: PrismaClientOrTx) {
     },
     findUserWiseDrawById(drawId: number, userId: number, committeeId: number): Promise<CommitteeDrawUserWiseRecordRaw | null> {
       return client.userWiseDraw.findUnique({
-        where: { id: drawId, userId, committeeId },
+        where: { uniqueUserWiseDraw: { drawId, userId, committeeId } },
+        select: committeeDrawUserWiseSelect,
+      });
+    },
+
+    findComUserWiseDrawById(drawId: number, committeeId: number): Promise<CommitteeDrawUserWiseRecordRaw | null> {
+      return client.userWiseDraw.findFirst({
+        where: {  drawId, committeeId, isDrawCompleted: true } ,
+        select: committeeDrawUserWiseSelect,
+      });
+    },
+    findUserWiseDrawByAndUserIdAndCommitteeId(committeeId: number, userId: number): Promise<CommitteeDrawUserWiseRecordRaw | null> {
+      // Note: Prisma client needs regeneration after schema update for isDrawCompleted field
+      return (client.userWiseDraw.findFirst as any)({
+        where: { 
+          userId,
+          committeeId, 
+          isDrawCompleted: true 
+        },
         select: committeeDrawUserWiseSelect,
       });
     },
@@ -273,17 +295,54 @@ export async function findCommitteeMembersWithUser(
   });
 }
 
-type TransactionOptions = Parameters<typeof prisma.$transaction>[1];
+export async function findCommitteeMembersWithUserAndDraw(
+  committeeId: number,
+  drawId: number
+) {
+  return prisma.committeeMember.findMany({
+    where: { committeeId },
+    include: {
+      user: {
+        include: {
+          UserWiseDraw: {
+            where: { committeeId, drawId },
+            include: {
+              Committee: true,
+              CommitteeDraw: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: {
+      createdAt: "asc"
+    }
+  });
+}
 
-export async function runInTransaction<T>(
-  handler: (context: {
-    repo: ReturnType<typeof createScopedRepository>;
-    tx: Prisma.TransactionClient;
-  }) => Promise<T>,
-  options?: TransactionOptions
-): Promise<T> {
-  return prisma.$transaction(async (tx) => {
-    const repository = createScopedRepository(tx);
-    return handler({ repo: repository, tx });
-  }, options);
+export async function updateUserWiseDrawCompleted(drawId: number, userId: number, committeeId: number, isDrawCompleted: boolean) {
+  // Note: Prisma client needs regeneration after schema update for isDrawCompleted field
+  const result = await (prisma.userWiseDraw.update as any)({
+    where: {
+      uniqueUserWiseDraw: {
+        userId,
+        drawId,
+        committeeId,
+      },
+    },
+    data: { 
+      isDrawCompleted: isDrawCompleted,
+    },
+    include: {
+      User: true,
+    },
+  });
+  return result;
+}
+
+export async function findUserWiseDrawById(drawId: number, userId: number, committeeId: number): Promise<CommitteeDrawUserWiseRecordRaw | null> {
+  return prisma.userWiseDraw.findUnique({
+    where: { id: drawId, userId, committeeId },
+    select: committeeDrawUserWiseSelect,
+  });
 }

@@ -2,8 +2,7 @@ import { PrismaClient, User } from "@prisma/client";
 import { BadRequestException } from "../../exception/badrequest.exception";
 import { hashPassword } from "../../utils/hash";
 import { prisma } from "../../utils/prisma";
-import { FoundUser, RegisterUserInput } from "./auth.types";
-import { UserRole } from "../../enum/constants";
+import { AuthenticatedUserPayload, FoundUser, RegisterUserInput } from "./auth.types";
 import baseLogger from "../../utils/logger/winston";
 
 type PrismaTransactionClient = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
@@ -27,7 +26,7 @@ export const RegisterUser = async (
   prismaClient: PrismaClient | PrismaTransactionClient,
   body: RegisterUserInput
 ): Promise<User> => {
-  const { email, phoneNo, password, role, name } = body;
+  const { email, phoneNo, password, role, name, createdBy } = body;
   
   try {
     // Check if user already exists - use the same client (transaction or regular)
@@ -49,6 +48,7 @@ export const RegisterUser = async (
       phoneNo,
       role,
       name,
+      createdBy,
     };
     
     baseLogger.info("==dataToCreate==:", dataToCreate, salt, hash);
@@ -100,11 +100,11 @@ export async function findUserByPhoneNo(phoneNo: string): Promise<FoundUser> {
 }
 
 
-export async function getUserListCreatedByAdmin(): Promise<any> {
+export async function getUserListCreatedByAdmin(authUser: AuthenticatedUserPayload): Promise<any> {
     const user = await prisma.user.findMany({
             where: {
-        role: UserRole.USER,
-        // createdBy: Number(authUser.id),
+        // role: UserRole.USER,
+        createdBy: Number(authUser.id),
       },
                     select: {
                         id: true,

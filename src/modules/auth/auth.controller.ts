@@ -117,6 +117,7 @@ export const REGISTER_USER = async (
           password,
           role,
           name,
+          createdBy: undefined,
         };
         
         // RegisterUser will throw an error if user already exists or creation fails
@@ -227,7 +228,7 @@ export const GET_USER_LIST_CREATED_BY_ADMIN = async (
       description: "You are not authorized to get user list",
     });
   }
-  const data = await getUserListCreatedByAdmin();
+  const data = await getUserListCreatedByAdmin(authUser);
   return reply.status(200).send(
     fmt.formatResponse(
       data || [],

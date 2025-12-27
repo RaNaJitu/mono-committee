@@ -93,7 +93,7 @@ model Committee {
   updatedBy               Int
   extraDaysForFine        Int?                   @default(0)
   fineAmount              Decimal?               @db.Decimal(15, 2)  @default(10)
-  fineStartDate           DateTime?
+  fineStartDate           DateTime?              @db.Time   // it store only time in db
   User                    User                  @relation(fields: [createdBy], references: [id])
 
   CommitteeMember         CommitteeMember[]

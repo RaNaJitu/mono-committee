@@ -146,19 +146,40 @@ async function calculateFineAmountInternal(
     return 0;
   }
 
-  const drawFineStartDate = new Date(committeeDetails.fineStartDate);
+  const fineStartTimeOnly = new Date(committeeDetails.fineStartDate);
+  const committeeDrawDate  = new Date(draw.committeeDrawDate);
   const todayOnly = new Date(
     today.getFullYear(),
     today.getMonth(),
     today.getDate()
   );
-  const drawFineStartDateOnly = new Date(
-    drawFineStartDate.getFullYear(),
-    drawFineStartDate.getMonth(),
-    drawFineStartDate.getDate()
-  );
+  const drawHour = committeeDrawDate.getHours();
+const drawMinute = committeeDrawDate.getMinutes();
 
-  const diffTime = todayOnly.getTime() - drawFineStartDateOnly.getTime();
+const cutoffHour = fineStartTimeOnly.getHours();
+const cutoffMinute = fineStartTimeOnly.getMinutes();
+let fineStartDateTime: Date;
+if (
+  drawHour > cutoffHour ||
+  (drawHour === cutoffHour && drawMinute > cutoffMinute)
+) {
+  // draw time exceeded fine start time → fine starts immediately
+  fineStartDateTime = committeeDrawDate;
+} else {
+  // fine starts at cutoff time on draw date
+  fineStartDateTime = new Date(
+    committeeDrawDate.getFullYear(),
+    committeeDrawDate.getMonth(),
+    committeeDrawDate.getDate(),
+    cutoffHour,
+    cutoffMinute,
+    0
+  );
+}
+if (todayOnly <= fineStartDateTime) {
+  return 0;
+}
+  const diffTime = todayOnly.getTime() - fineStartDateTime.getTime();
   const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
   

@@ -112,6 +112,7 @@ const mapCommitteeMemberWithDraw = (
       role: record.user.role,
       userDrawAmountPaid: latestDraw ? Number(latestDraw.userDrawAmountPaid) : 0,
       fineAmountPaid: latestDraw ? Number(latestDraw.fineAmountPaid) : 0,
+      isDrawCompleted: latestDraw ? latestDraw.isDrawCompleted : false,
     },
   };
 };
@@ -377,7 +378,8 @@ export async function getCommitteeAnalysis(
   const committeeDetails = await getCommitteeDetailsOrThrow(payload.committeeId);
 
   const totalMembers = await committeeReadRepository.countCommitteeMembers(committeeDetails.id);
-  const userWiseDraws =await committeeReadRepository.findUserWiseDrawListByCommitteeIdAndUserId(payload.committeeId, Number(authUser.id));
+  const userWiseDraws = await committeeReadRepository.findUserWiseDrawListByCommitteeIdAndUserId(payload.committeeId, Number(authUser.id));
+  // const userWiseDraws =await committeeReadRepository.findUserWiseDrawById(payload.drawId, Number(authUser.id), payload.committeeId);
   const totalCommitteeFineAmount = userWiseDraws.reduce((acc, curr) => acc + Number(curr.fineAmountPaid), 0);
   const totalCommitteePaidAmount = userWiseDraws.reduce((acc, curr) => acc + Number(curr.userDrawAmountPaid), 0);
 

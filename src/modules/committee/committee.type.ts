@@ -63,6 +63,7 @@ export interface CommitteeMemberWithDraw {
     role: string;
     userDrawAmountPaid: number;
     fineAmountPaid: number;
+    isDrawCompleted: boolean;
   };
 }
 

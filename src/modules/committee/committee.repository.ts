@@ -40,6 +40,7 @@ export const committeeMemberInclude = {
         select: {
           userDrawAmountPaid: true,
           fineAmountPaid: true,
+          isDrawCompleted: true,
         },
         orderBy: {
           createdAt: "desc",

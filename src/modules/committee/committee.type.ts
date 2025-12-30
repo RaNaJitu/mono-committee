@@ -63,7 +63,7 @@ export interface CommitteeMemberWithDraw {
     role: string;
     userDrawAmountPaid: number;
     fineAmountPaid: number;
-    isDrawCompleted: boolean;
+    isUserDrawCompleted: boolean;
   };
 }
 
@@ -121,7 +121,7 @@ export interface UserWiseDrawRecord {
   committeeId: number;
   drawId: number;
   userId: number;
-  isDrawCompleted: boolean;
+  isUserDrawCompleted: boolean;
   user: {
     id: number;
     name: string;

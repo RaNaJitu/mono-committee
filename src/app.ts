@@ -189,6 +189,7 @@ async function main() {
   // Register Swagger FIRST - Before security headers to avoid CSP conflicts
   await app.register(fastifySwagger, swaggerConfig);
   await app.register(fastifySwaggerUi, swaggerUiConfig);
+
   baseLogger.info('Swagger UI enabled');
 
   // Register Security Headers (Helmet) - Must be registered early

@@ -164,7 +164,7 @@ const userWiseDrawPaidGetResponse = {
                 name: { type: "string" },
                 phoneNo: { type: "string" },
                 email: { type: "string" },
-                isDrawCompleted : { type: "boolean" },
+                isUserDrawCompleted : { type: "boolean" },
                 role: { type: "string" },
                 userDrawAmountPaid: { type: "number" },
                 fineAmountPaid: { type: "number" },
@@ -258,12 +258,12 @@ export const updateDrawAmountSchema = {
 //#region User Wise Draw Completed
 const userWiseDrawCompletedBody = {
   type: "object",
-  required: ["committeeId", "drawId", "userId", "isDrawCompleted"],
+  required: ["committeeId", "drawId", "userId", "isUserDrawCompleted"],
   properties: {
     committeeId: { type: "integer", minimum: 1, description: "Committee ID" },
     drawId: { type: "integer", minimum: 1, description: "Draw ID" },
     userId: { type: "integer", minimum: 1, description: "User ID" },
-    isDrawCompleted: { type: "boolean", description: "Is draw completed" },
+    isUserDrawCompleted: { type: "boolean", description: "Is draw completed" },
   },
 };
 
@@ -272,7 +272,7 @@ const userWiseDrawCompletedResponse = {
     description: "User draw completed updated successfully",
     type: "object",
     properties: {
-      data: { type: "object", properties: { id: { type: "integer" }, committeeId: { type: "integer" }, drawId: { type: "integer" }, userId: { type: "integer" }, isDrawCompleted: { type: "boolean" } } },
+      data: { type: "object", properties: { id: { type: "integer" }, committeeId: { type: "integer" }, drawId: { type: "integer" }, userId: { type: "integer" }, isUserDrawCompleted: { type: "boolean" } } },
     },
   },
 };

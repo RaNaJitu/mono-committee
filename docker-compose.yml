@@ -58,6 +58,20 @@ services:
       timeout: 3s
       retries: 3
       start_period: 40s
+    swagger-ui:
+      image: swaggerapi/swagger-ui
+      container_name: committee-swagger
+      restart: unless-stopped
+      ports:
+        - "8080:8080"
+      environment:
+        - SWAGGER_JSON=/spec/openapi.yaml
+      volumes:
+        - ./openapi.yaml:/spec/openapi.yaml:ro
+      networks:
+        - committee-network
+      depends_on:
+        - backend
 
 networks:
   committee-network:

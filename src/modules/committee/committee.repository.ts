@@ -40,12 +40,8 @@ export const committeeMemberInclude = {
         select: {
           userDrawAmountPaid: true,
           fineAmountPaid: true,
-          isDrawCompleted: true,
+          isUserDrawCompleted: true,
         },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 1,
       },
     },
   },
@@ -96,6 +92,9 @@ export async function findCommitteesByAdmin(
   return prisma.committee.findMany({
     where: { createdBy: adminId },
     select: committeeSelectFields,
+    orderBy: {
+      id: "asc",
+    },
   });
 }
 
@@ -246,6 +245,9 @@ export function createScopedRepository(client: PrismaClientOrTx) {
       return prisma.committeeDraw.findMany({
         where: { committeeId },
         select: committeeDrawSelect,
+        orderBy: {
+          id: "asc",
+        },
       });
     },
     findUserWiseDrawListByCommitteeIdAndUserId(committeeId: number, userId: number): Promise<CommitteeDrawUserWiseRecordRaw[]> {
@@ -256,7 +258,7 @@ export function createScopedRepository(client: PrismaClientOrTx) {
     },
     findUserWiseDrawById(drawId: number, userId: number, committeeId: number): Promise<CommitteeDrawUserWiseRecordRaw | null> {
       return client.userWiseDraw.findUnique({
-        where: { id: drawId, userId, committeeId },
+        where: { uniqueUserWiseDraw: { drawId, userId, committeeId } },
         select: committeeDrawUserWiseSelect,
       });
     },
@@ -270,7 +272,33 @@ export async function findCommitteeMembersWithUser(
 ): Promise<CommitteeMemberWithUserRecord[]> {
   return prisma.committeeMember.findMany({
     where: { committeeId },
-    include: committeeMemberInclude,
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          phoneNo: true,
+          email: true,
+          role: true,
+          createdAt: true,
+          UserWiseDraw: {
+            where: {
+              committeeId,
+            },
+            select: {
+              userDrawAmountPaid: true,
+              fineAmountPaid: true,
+              isUserDrawCompleted: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      user: {
+        createdAt: "asc",
+      },
+    },
   });
 }
 
@@ -288,3 +316,5 @@ export async function runInTransaction<T>(
     return handler({ repo: repository, tx });
   }, options);
 }
+
+

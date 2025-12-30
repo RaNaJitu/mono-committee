@@ -20,10 +20,11 @@ import {
 import {
   CommitteeDetailsRecord,
   CommitteeDrawRecordRaw,
-  committeeReadRepository,
+  drawRepository,
   findCommitteeMembersWithUserAndDraw,
   updateUserWiseDrawCompleted as updateUserWiseDrawCompletedRepo,
 } from "./draw.repository";
+import { committeeReadRepository } from "../committee/committee.repository";
 import { ForbiddenException } from "../../exception/forbidden.exception";
 
 
@@ -41,7 +42,7 @@ const ADMIN_ONLY_ERROR = {
 type UserWiseDrawRawRecord = Awaited<
   ReturnType<typeof committeeReadRepository["upsertUserWiseDraw"]>
 > & {
-  isDrawCompleted?: boolean;
+  isUserDrawCompleted?: boolean | null;
 };
 
 const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>
@@ -89,7 +90,7 @@ const mapUserWiseDrawRecord = (
     userId: record.userId,
     user: {
       id: record.User.id,
-      isDrawCompleted: record.isDrawCompleted ?? false,
+      isUserDrawCompleted: record.isUserDrawCompleted ?? false,
       name: record.User.name,
       phoneNo: record.User.phoneNo,
       email: record.User.email || "",
@@ -271,11 +272,11 @@ async function calculatePaidAmountByUserInternalForLottery(
     });
   }
 
-  const isUserHasTookCommitteeDraw = await committeeReadRepository.findUserWiseDrawByAndUserIdAndCommitteeId(payload.committeeId, payload.userId);
+  const isUserHasTookCommitteeDraw = await drawRepository.findUserWiseDrawByAndUserIdAndCommitteeId(Number(payload.committeeId), Number(payload.userId));
 
   
   let drawAmount = 0;
-  if (isUserHasTookCommitteeDraw?.isDrawCompleted) {
+  if (isUserHasTookCommitteeDraw?.isUserDrawCompleted) {
     drawAmount = Number(isUserHasTookCommitteeDraw.userDrawAmountPaid) + Number(committeeDetails.lotteryAmount);
   } else {
     drawAmount = Number(draw.committeeDrawAmount)
@@ -347,6 +348,12 @@ authUser: AuthenticatedUserPayload,
     fineAmountPaid: Number(fineAmount.toFixed(2)),
   });
 
+  const countUserWisePaidAmountOnDrawAndCommittee = await drawRepository.countUserWisePaidAmountbyCommitteeIdAndDrawId(Number(payload.committeeId), Number(payload.drawId));
+  
+  if (countUserWisePaidAmountOnDrawAndCommittee === committeeDetails.commissionMaxMember) { 
+    await drawRepository.updateCommitteeDrawCompleted(Number(payload.committeeId), Number(payload.drawId), true);
+  }
+
   return mapUserWiseDrawRecord(record);
 }
 
@@ -399,7 +406,7 @@ export async function getUserWiseDrawPaidAmount(
         user: {
           id: member.user.id,
           name: member.user.name,
-          isDrawCompleted: userWiseDraws.length > 0 ? userWiseDraws[0].isDrawCompleted : false,
+          isUserDrawCompleted: userWiseDraws.length > 0 ? userWiseDraws[0].isUserDrawCompleted : false,
           phoneNo: member.user.phoneNo,
           email: member.user.email || "",
           role: String(member.user.role),
@@ -419,7 +426,7 @@ export async function getUserWiseDrawPaidAmount(
           userId: userWiseDraw.userId,
           user: {
             id: member.user.id,
-            isDrawCompleted: userWiseDraw.isDrawCompleted,
+            isUserDrawCompleted: userWiseDraw.isUserDrawCompleted,
             name: member.user.name,
             phoneNo: member.user.phoneNo,
             email: member.user.email || "",
@@ -575,8 +582,8 @@ export async function updateUserWiseDrawCompleted(
     });
   }
 
-  const isUserDrowCompleted: any = await committeeReadRepository.findUserWiseDrawByAndUserIdAndCommitteeId(Number(payload.committeeId), Number(payload.userId));
-  if (isUserDrowCompleted && isUserDrowCompleted.isDrawCompleted) {
+  const isUserDrowCompleted: any = await drawRepository.findUserWiseDrawByAndUserIdAndCommitteeId(Number(payload.committeeId), Number(payload.userId));
+  if (isUserDrowCompleted && isUserDrowCompleted.isUserDrawCompleted) {
     throw new BadRequestException({
       message: "User Has Already Taken The Draw",
       description: "User Has Already Taken The Draw",
@@ -584,7 +591,7 @@ export async function updateUserWiseDrawCompleted(
   }
 
 
-  const currentDrawTakenByUser = await committeeReadRepository.findComUserWiseDrawById(Number(payload.drawId), Number(payload.committeeId));
+  const currentDrawTakenByUser = await drawRepository.findComUserWiseDrawById(Number(payload.drawId), Number(payload.committeeId));
   if (currentDrawTakenByUser) {
     throw new BadRequestException({
       message: "this draw is already taken by other user",
@@ -606,7 +613,7 @@ export async function updateUserWiseDrawCompleted(
     Number(payload.drawId), 
     Number(payload.userId), 
     Number(payload.committeeId),
-    true // isDrawCompleted - marking draw as completed
+    true // isUserDrawCompleted - marking draw as completed
   );
   return mapUserWiseDrawRecord(record);
 }

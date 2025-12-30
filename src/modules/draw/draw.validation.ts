@@ -186,7 +186,7 @@ export const userWiseDrawCompletedBodySchema = zod.object({
     .number({ message: "User ID must be a number" })
     .int("User ID must be an integer")
     .positive("User ID must be positive"),
-  isDrawCompleted: zod
-    .boolean({ message: "Is draw completed must be a boolean" }),
+  isUserDrawCompleted: zod
+    .boolean({ message: "Is user draw completed must be a boolean" }),
 });
 //#endregion

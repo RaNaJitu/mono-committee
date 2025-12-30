@@ -67,7 +67,7 @@ export const committeeDrawUserWiseSelect = {
   userId: true,
   userDrawAmountPaid: true,
   fineAmountPaid: true,
-  isDrawCompleted: true,
+  isUserDrawCompleted: true,
 } as const;
 
 export type CommitteeSelectRecord = Prisma.CommitteeGetPayload<{
@@ -266,25 +266,59 @@ export function createScopedRepository(client: PrismaClientOrTx) {
 
     findComUserWiseDrawById(drawId: number, committeeId: number): Promise<CommitteeDrawUserWiseRecordRaw | null> {
       return client.userWiseDraw.findFirst({
-        where: {  drawId, committeeId, isDrawCompleted: true } ,
+        where: {  drawId, committeeId, isUserDrawCompleted: true } ,
         select: committeeDrawUserWiseSelect,
       });
     },
     findUserWiseDrawByAndUserIdAndCommitteeId(committeeId: number, userId: number): Promise<CommitteeDrawUserWiseRecordRaw | null> {
-      // Note: Prisma client needs regeneration after schema update for isDrawCompleted field
+      // Note: Prisma client needs regeneration after schema update for isUserDrawCompleted field
       return (client.userWiseDraw.findFirst as any)({
         where: { 
           userId,
           committeeId, 
-          isDrawCompleted: true 
+          isUserDrawCompleted: true 
         },
         select: committeeDrawUserWiseSelect,
       });
     },
-  };
+    // async countUserWisePaidAmountbyCommitteeIdAndDrawId(committeeId: number, drawId: number): Promise<{ _sum: { userDrawAmountPaid: number; fineAmountPaid: number } }> {
+    //   const result = await prisma.userWiseDraw.aggregate({
+    //     where: { committeeId, drawId },
+    //     _sum: {
+    //       userDrawAmountPaid: true,
+    //       fineAmountPaid: true,
+    //     },
+    //   });
+    //   return {
+    //     _sum: {
+    //       userDrawAmountPaid: Number(result._sum.userDrawAmountPaid ?? 0),
+    //       fineAmountPaid: Number(result._sum.fineAmountPaid ?? 0),
+    //     },
+    //   };
+    // }
+    async countUserWisePaidAmountbyCommitteeIdAndDrawId(committeeId: number, drawId: number): Promise<number> {
+        return await prisma.userWiseDraw.count({
+          where: {
+            committeeId,
+            drawId,
+            userDrawAmountPaid: {
+              gt: 0,
+            },
+          },
+        });
+      },
+      async updateCommitteeDrawCompleted(committeeId: number, drawId: number, isDrawCompleted: boolean): Promise<CommitteeDrawRecordRaw> {
+        return await prisma.committeeDraw.update({
+          where: { id: drawId, committeeId },
+          data: { isDrawCompleted },
+        });
+      }
+    }
 }
 
-export const committeeReadRepository = createScopedRepository(prisma);
+
+export const drawRepository = createScopedRepository(prisma);
+
 
 export async function findCommitteeMembersWithUser(
   committeeId: number
@@ -320,8 +354,8 @@ export async function findCommitteeMembersWithUserAndDraw(
   });
 }
 
-export async function updateUserWiseDrawCompleted(drawId: number, userId: number, committeeId: number, isDrawCompleted: boolean) {
-  // Note: Prisma client needs regeneration after schema update for isDrawCompleted field
+export async function updateUserWiseDrawCompleted(drawId: number, userId: number, committeeId: number, isUserDrawCompleted: boolean) {
+  // Note: Prisma client needs regeneration after schema update for isUserDrawCompleted field
   const result = await (prisma.userWiseDraw.update as any)({
     where: {
       uniqueUserWiseDraw: {
@@ -331,7 +365,7 @@ export async function updateUserWiseDrawCompleted(drawId: number, userId: number
       },
     },
     data: { 
-      isDrawCompleted: isDrawCompleted,
+      isUserDrawCompleted: isUserDrawCompleted,
     },
     include: {
       User: true,
@@ -346,3 +380,22 @@ export async function findUserWiseDrawById(drawId: number, userId: number, commi
     select: committeeDrawUserWiseSelect,
   });
 }
+
+export async function countUserWisePaidAmountbyCommitteeIdAndDrawId(committeeId: number, drawId: number): Promise<number> {
+  return await prisma.userWiseDraw.count({
+    where: {
+      committeeId,
+      drawId,
+      userDrawAmountPaid: {
+        gt: 0,
+      },
+    },
+  });
+}
+
+// export async function updateCommitteeDrawCompleted(committeeId: number, drawId: number, isUserDrawCompleted: boolean) {
+//   return await prisma.committeeDraw.update({
+//     where: { id: drawId },
+//     data: { isUserDrawCompleted },
+//   });
+// }

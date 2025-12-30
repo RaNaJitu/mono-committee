@@ -21,7 +21,6 @@ import {
 } from "./committee.type";
 import {
   CommitteeDetailsRecord,
-  CommitteeMemberWithUserRecord,
   CommitteeSelectRecord,
   committeeReadRepository,
   committeeSelectFields,
@@ -94,28 +93,6 @@ const mapCommitteeDetails = (
   extraDaysForFine: record.extraDaysForFine ?? 0,
   startCommitteeDate: record.startCommitteeDate ?? null,
 });
-
-const mapCommitteeMemberWithDraw = (
-  record: CommitteeMemberWithUserRecord
-): CommitteeMemberWithDraw => {
-  const latestDraw = record.user.UserWiseDraw[0];
-  return {
-    id: record.id,
-    userId: record.userId,
-    committeeId: record.committeeId,
-    createdAt: record.createdAt,
-    user: {
-      id: record.user.id,
-      name: record.user.name,
-      phoneNo: record.user.phoneNo,
-      email: record.user.email,
-      role: record.user.role,
-      userDrawAmountPaid: latestDraw ? Number(latestDraw.userDrawAmountPaid) : 0,
-      fineAmountPaid: latestDraw ? Number(latestDraw.fineAmountPaid) : 0,
-      isDrawCompleted: latestDraw ? latestDraw.isDrawCompleted : false,
-    },
-  };
-};
 
 function assertAdmin(authUser: AuthenticatedUserPayload): void {
   if (authUser.role !== UserRole.ADMIN) {
@@ -365,7 +342,36 @@ export async function getCommitteeMemberList(
 ): Promise<CommitteeMemberWithDraw[]> {
   const id = ensureCommitteeIdProvided(committeeId);
   const members = await findCommitteeMembersWithUser(id);
-  return members.map(mapCommitteeMemberWithDraw);
+
+  return members.map((cm) => {
+    const draws = cm.user.UserWiseDraw;
+    const totalUserDrawAmountPaid = draws.reduce(
+      (sum, d) => sum + Number(d.userDrawAmountPaid ?? 0),
+      0,
+    );
+    const totalFineAmountPaid = draws.reduce(
+      (sum, d) => sum + Number(d.fineAmountPaid ?? 0),
+      0,
+    );
+    const isAnyDrawCompleted = draws.some((d) => d.isUserDrawCompleted === true);
+
+    return {
+      id: cm.id,
+      userId: cm.userId,
+      committeeId: cm.committeeId,
+      createdAt: cm.createdAt,
+      user: {
+        id: cm.user.id,
+        name: cm.user.name,
+        phoneNo: cm.user.phoneNo,
+        email: cm.user.email,
+        role: cm.user.role,
+        userDrawAmountPaid: totalUserDrawAmountPaid,
+        fineAmountPaid: totalFineAmountPaid,
+        isUserDrawCompleted: isAnyDrawCompleted,
+      },
+    };
+  });
 }
 
 

@@ -129,7 +129,7 @@ export interface UserWiseDrawRecord {
   userId: number;
   user: {
     id: number;
-    isDrawCompleted: boolean;
+    isUserDrawCompleted: boolean;
     name: string;
     phoneNo: string;
     email: string;
@@ -181,5 +181,5 @@ export interface CommitteeAnalysis {
 }
 
 export interface UserWiseDrawCompletedBody extends UserWiseDrawPaidBody {
-  isDrawCompleted: boolean;
+  isUserDrawCompleted: boolean;
 }

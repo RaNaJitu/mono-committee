@@ -51,6 +51,74 @@ export const LOGIN = async (
     });
   }
 
+  // Check login count from Redis
+  const loginCountKey = `login:count:${user.id}`;
+  const loginTimeKey = `login:time:${user.id}`;
+  const MAX_LOGIN_ATTEMPTS = 5;
+  const REDIS_EXPIRE_TIME = Number(process.env.REDIS_EXPIRE_TIME) || 300; // Default: 5 minutes (300 seconds)
+
+  try {
+    if (redisClient && redisClient.isOpen) {
+      try {
+        const currentCount = await redisClient.get(loginCountKey);
+        const loginCount = currentCount ? parseInt(currentCount, 10) : 0;
+
+        if (loginCount > MAX_LOGIN_ATTEMPTS) {
+          throw new ForbiddenException({
+            message: "You have completed max time",
+            description: `You have reached the maximum login attempts (${MAX_LOGIN_ATTEMPTS}). Please contact support.`,
+          });
+        }
+
+        // Increment login count
+        const newCount = loginCount + 1;
+        await redisClient.setEx(loginCountKey, REDIS_EXPIRE_TIME, newCount.toString());
+
+        // Store login time
+        const loginTime = new Date().toISOString();
+        await redisClient.lPush(loginTimeKey, loginTime);
+        await redisClient.expire(loginTimeKey, REDIS_EXPIRE_TIME);
+        // Keep only last 10 login times
+        await redisClient.lTrim(loginTimeKey, 0, 9);
+      } catch (redisError) {
+        // If it's a ForbiddenException, re-throw it
+        if (redisError instanceof ForbiddenException) {
+          throw redisError;
+        }
+        
+        // Check if it's an authentication error
+        const errorMessage = redisError instanceof Error ? redisError.message : String(redisError);
+        const isAuthError = errorMessage.includes('NOAUTH') || errorMessage.includes('Authentication required');
+        
+        if (isAuthError) {
+          baseLogger.error("Redis authentication failed during login count check", {
+            error: errorMessage,
+            userId: user.id,
+            hint: "Check REDIS_PWD environment variable. Login will proceed without rate limiting.",
+            hasPassword: !!process.env.REDIS_PWD,
+          });
+        } else {
+          // Log other Redis errors but don't block login
+          baseLogger.warn("Failed to check/login count in Redis", {
+            error: errorMessage,
+            userId: user.id,
+          });
+        }
+        // Continue with login even if Redis fails
+      }
+    }
+  } catch (error) {
+    // If it's a ForbiddenException, re-throw it
+    if (error instanceof ForbiddenException) {
+      throw error;
+    }
+    // Log other errors but don't block login
+    baseLogger.warn("Unexpected error during login count check", {
+      error: error instanceof Error ? error.message : String(error),
+      userId: user.id,
+    });
+  }
+
   const profileImage =
     "profileImage" in user ? (user as UserWithProfile).profileImage ?? null : null;
   const userPayload: AuthenticatedUserPayload = {

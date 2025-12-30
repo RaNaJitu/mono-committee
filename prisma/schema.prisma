@@ -92,7 +92,7 @@ model Committee {
   createdBy               Int
   updatedBy               Int
   extraDaysForFine        Int?                   @default(0)
-  fineAmount              Decimal?               @db.Decimal(15, 2)  @default(10)
+  fineAmount              Decimal               @db.Decimal(15, 2)  @default(10)
   fineStartDate           DateTime?              @db.Time   // it store only time in db
   User                    User                  @relation(fields: [createdBy], references: [id])
 
@@ -126,6 +126,7 @@ model CommitteeDraw {
   committeeDrawTime       DateTime
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
+  isDrawCompleted         Boolean               @default(false)
   // userId                  Int
   // User                    User                  @relation(fields: [userId], references: [id])
 
@@ -143,7 +144,7 @@ model UserWiseDraw {
   userDrawAmountPaid      Decimal               @db.Decimal(15, 2)  @default(0)
   fineAmountPaid          Decimal               @db.Decimal(15, 2)  @default(0)
   userId                  Int
-  isDrawCompleted         Boolean               @default(false)
+  isUserDrawCompleted     Boolean               @default(false)
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
   User                    User                  @relation(fields: [userId], references: [id])

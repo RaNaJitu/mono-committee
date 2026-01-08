@@ -310,6 +310,16 @@ authUser: AuthenticatedUserPayload,
       description: "Committee not found",
     });
   }
+  if (committeeDetails.committeeType === CommitteeTypeEnum.LOTTERY) { 
+    const isUserupdateCommitteeDrawAmount = await drawRepository.findUserWiseDrawById( Number(payload.drawId),Number(payload.userId), Number(payload.committeeId));
+    if (isUserupdateCommitteeDrawAmount) {
+      throw new BadRequestException({
+        message: "User has already updated the committee draw amount",
+        description: "User has already updated the committee draw amount",
+      });
+    }
+  }
+
   let drawAmount = 0;
   let fineAmount = 0;
   switch (committeeDetails.committeeType) {

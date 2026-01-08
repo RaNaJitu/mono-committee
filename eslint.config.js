@@ -42,6 +42,20 @@ module.exports = [
     },
   },
   {
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      'no-console': 'off', // Allow console in scripts
+    },
+  },
+  {
     ignores: [
       'node_modules/**',
       'dist/**',

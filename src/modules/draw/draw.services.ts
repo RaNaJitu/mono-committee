@@ -618,3 +618,66 @@ export async function updateUserWiseDrawCompleted(
   return mapUserWiseDrawRecord(record);
 }
 //#endregion
+
+interface LotteryRandomUser {
+  id: number;
+  name: string;
+  phoneNo: string;
+  email: string;
+  userId: number;
+}
+//#region Get Lottery Random User
+export async function getLotteryRandomUser(committeeId: number): Promise<LotteryRandomUser> {
+  const committeeDetails = await getCommitteeDetailsOrThrow(committeeId);
+  if (!committeeDetails) {
+    throw new NotFoundException({
+      message: "Committee not found",
+      description: "Committee not found",
+    });
+  }
+
+  const isUserNotCompletedDrawDetails = await drawRepository.findDrawNotCompletedByCommitteeId(committeeId);
+  // const uniqueUsers: any = []
+
+  function filterUniqueUsersWithAllFalse(records: any) {
+    const userMap = new Map();
+  
+    for (const record of records) {
+      const { userId, isUserDrawCompleted } = record;
+  
+      // If user already marked invalid, skip
+      if (userMap.get(userId)?.invalid) continue;
+  
+      if (isUserDrawCompleted === true) {
+        // Mark user as invalid (remove completely)
+        userMap.set(userId, { invalid: true });
+      } else {
+        // Store first valid record only
+        if (!userMap.has(userId)) {
+          userMap.set(userId, { invalid: false, record });
+        }
+      }
+    }
+  
+    // Return only unique valid users
+    return [...userMap.values()]
+      .filter(v => v.invalid === false)
+      .map(v => v.record);
+  }
+  
+  
+  const uniqueUsers = filterUniqueUsersWithAllFalse(isUserNotCompletedDrawDetails);
+ 
+  const randomUser: any = uniqueUsers[Math.floor(Math.random() * uniqueUsers.length)];
+  console.log(randomUser);
+  return {
+    id: randomUser.id,
+    name: randomUser.User.name,
+    phoneNo: randomUser.User.phoneNo,
+    email: randomUser.User.email,
+    userId: randomUser.User.id,
+  };
+}
+//#endregion
+
+

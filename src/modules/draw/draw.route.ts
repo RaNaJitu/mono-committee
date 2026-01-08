@@ -4,6 +4,7 @@ import { preUserHandler } from "../../middleware";
 import { validator } from "../../utils/validator";
 import {
   GET_COMMITTEE_DRAW_LIST,
+  GET_LOTTERY_RANDOM_USER,
   UPDATE_DRAW_AMOUNT,
   USER_WISE_DRAW_COMPLETED,
   USER_WISE_DRAW_PAID_GET,
@@ -15,9 +16,11 @@ import {
   getUserWiseDrawPaidSchema,
   updateDrawAmountSchema,
   userWiseDrawCompletedSchema,
+  getLotteryRandomUserSchema,
 } from "./draw.schema";
 import {
   committeeDrawQuerySchema,
+  getLotteryRandomUserQuerySchema,
   updateDrawAmountBodySchema,
   userWiseDrawCompletedBodySchema,
   userWiseDrawPaidBodySchema,
@@ -68,6 +71,14 @@ const CommitteeRoutes: IRouteOptions<{
     schema: userWiseDrawCompletedSchema,
     validatorCompiler: validator({ body: userWiseDrawCompletedBodySchema }),
     method: API_METHODS.PATCH,
+  },
+  {
+    url: "/lottery-random-user",
+    handler: GET_LOTTERY_RANDOM_USER,
+    preHandler: [preUserHandler],
+    schema: getLotteryRandomUserSchema,
+    validatorCompiler: validator({ queryString: getLotteryRandomUserQuerySchema }),
+    method: API_METHODS.GET,
   },
 ];
 

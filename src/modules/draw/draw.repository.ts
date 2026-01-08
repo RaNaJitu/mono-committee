@@ -281,6 +281,27 @@ export function createScopedRepository(client: PrismaClientOrTx) {
         select: committeeDrawUserWiseSelect,
       });
     },
+
+
+    findDrawNotCompletedByCommitteeId(committeeId: number) {
+      return client.userWiseDraw.findMany({
+        where: {
+          committeeId,
+          // isUserDrawCompleted: false,
+        },
+        include: {
+          User: {
+            select: {
+              id: true,
+              name: true,
+              phoneNo: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+      });
+    },
     // async countUserWisePaidAmountbyCommitteeIdAndDrawId(committeeId: number, drawId: number): Promise<{ _sum: { userDrawAmountPaid: number; fineAmountPaid: number } }> {
     //   const result = await prisma.userWiseDraw.aggregate({
     //     where: { committeeId, drawId },

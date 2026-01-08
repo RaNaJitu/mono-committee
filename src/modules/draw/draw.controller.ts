@@ -3,6 +3,7 @@ import { fmt } from "../../config";
 import { AuthenticatedUserPayload } from "../auth/auth.types";
 import {
     getCommitteeDrawListForUser,
+    getLotteryRandomUser,
     getUserWiseDrawPaidAmount,
     updateDrawAmount,
     updateUserWiseDrawCompleted,
@@ -111,5 +112,21 @@ export const USER_WISE_DRAW_COMPLETED = async (
         .send(
             fmt.formatResponse(data || [], "Update User Wise Draw Completed!")
         );
+};
+//#endregion
+
+
+//#region Get Lottery Random User
+export const GET_LOTTERY_RANDOM_USER = async (
+    request: FastifyRequest<{
+        Querystring: { committeeId: number };
+    }>,
+    reply: FastifyReply
+): Promise<FastifyReply> => {
+    const { committeeId } = request.query;
+    const data = await getLotteryRandomUser(committeeId);
+    return reply
+        .status(200)
+        .send(fmt.formatResponse(data || [], "Get Lottery Random User!"));
 };
 //#endregion

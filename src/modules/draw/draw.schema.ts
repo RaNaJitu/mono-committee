@@ -288,3 +288,41 @@ export const userWiseDrawCompletedSchema = {
   },
 };
 //#endregion
+
+
+
+//#region Get Lottery Random User
+const getLotteryRandomUserQuery = {
+  type: "object",
+  required: ["committeeId"],
+  properties: {
+    committeeId: { type: "integer", minimum: 1, description: "Committee ID" },
+  },
+};
+
+
+const getLotteryRandomUserResponse = {
+  200: {
+    description: "Lottery random user retrieved successfully",
+    type: "object",
+    properties: {
+      data: { type: "object", properties: { id: { type: "integer" }, name: { type: "string" }, phoneNo: { type: "string" }, email: { type: "string" } } },
+    },
+  },
+};
+
+export const getLotteryRandomUserSchema = {
+  description: "Get lottery random user",
+  tags: ["Draw"],
+  summary: "Get Lottery Random User",
+  querystring: getLotteryRandomUserQuery,
+  security: [{ bearerAuth: [] }],
+  response: {
+    ...getLotteryRandomUserResponse,
+  },
+};
+
+//#endregion
+
+
+

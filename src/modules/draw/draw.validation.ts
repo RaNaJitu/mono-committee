@@ -190,3 +190,15 @@ export const userWiseDrawCompletedBodySchema = zod.object({
     .boolean({ message: "Is user draw completed must be a boolean" }),
 });
 //#endregion
+
+
+//#region Get Lottery Random User
+export const getLotteryRandomUserQuerySchema = zod.object({
+  committeeId: zod
+    .string({ message: "Committee ID must be provided in query" })
+    .regex(/^\d+$/, "Committee ID must be a valid number")
+    .transform((val) => Number(val)),
+});
+//#endregion
+
+

@@ -130,3 +130,29 @@ export const GET_LOTTERY_RANDOM_USER = async (
         .send(fmt.formatResponse(data || [], "Get Lottery Random User!"));
 };
 //#endregion
+
+//#region Update Lottery Result
+export const UPDATE_LOTTERY_RESULT = async (
+    request: FastifyRequest<{
+        Body: UserWiseDrawPaidBody;
+    }>,
+    reply: FastifyReply
+): Promise<FastifyReply> => {
+    const authUser = getDataFromRequestContext<AuthenticatedUserPayload>(
+        request,
+        "data"
+    );
+    // const data = await updateLotteryResult(authUser, request.body);
+    
+    //Here i am updating the user took the draw
+    await updateUserWiseDrawCompleted(authUser, request.body);
+    
+    // Here i am updating the user draw paid amount
+    await getUserWiseDrawPaidAmount(authUser, request.body);
+
+    const data = { };
+    return reply
+        .status(200)
+        .send(fmt.formatResponse(data || [], "Update Lottery Result!"));
+};
+//#endregion

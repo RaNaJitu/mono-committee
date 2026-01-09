@@ -12,9 +12,9 @@ export interface CommitteeDrawQuerystring {
 export interface UserWiseDrawPaidBody {
   committeeId: number;
   drawId: number;
-  userDrawAmountPaid: number;
   userId: number;
-  fineAmountPaid: number;
+  userDrawAmountPaid?: number;
+  fineAmountPaid?: number;
 }
 
 export interface AddCommitteeRequestBody {

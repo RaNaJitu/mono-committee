@@ -6,6 +6,7 @@ import {
   GET_COMMITTEE_DRAW_LIST,
   GET_LOTTERY_RANDOM_USER,
   UPDATE_DRAW_AMOUNT,
+  UPDATE_LOTTERY_RESULT,
   USER_WISE_DRAW_COMPLETED,
   USER_WISE_DRAW_PAID_GET,
   USER_WISE_DRAW_PAID_UPDATE,
@@ -79,7 +80,15 @@ const CommitteeRoutes: IRouteOptions<{
     schema: getLotteryRandomUserSchema,
     validatorCompiler: validator({ queryString: getLotteryRandomUserQuerySchema }),
     method: API_METHODS.GET,
-  },
+    },
+    {
+      url: "/lottery-result-update",
+      handler: UPDATE_LOTTERY_RESULT,
+      preHandler: [preUserHandler],
+      schema: userWiseDrawPaidBodySchema,
+      validatorCompiler: validator({ body: userWiseDrawPaidBodySchema }),
+      method: API_METHODS.PATCH,
+    },
 ];
 
 export default CommitteeRoutes;

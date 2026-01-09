@@ -75,6 +75,7 @@ const mapCommitteeDrawRecord = (
   committeeDrawMinAmount: Number(record.committeeDrawMinAmount),
   committeeDrawDate: record.committeeDrawDate,
   committeeDrawTime: record.committeeDrawTime,
+  isDrawCompleted: record.isDrawCompleted,
 });
 
 const mapUserWiseDrawRecord = (

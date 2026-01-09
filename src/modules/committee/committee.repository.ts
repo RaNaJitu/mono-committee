@@ -55,6 +55,7 @@ export const committeeDrawSelect = {
   committeeDrawMinAmount: true,
   committeeDrawDate: true,
   committeeDrawTime: true,
+  isDrawCompleted: true,
 } as const;
 
 export const committeeDrawUserWiseSelect = {

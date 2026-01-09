@@ -49,6 +49,7 @@ const committeeDrawListResponse = {
             committeeDrawMinAmount: { type: "number" },
             committeeDrawDate: { type: "string", format: "date-time" },
             committeeDrawTime: { type: "string", format: "date-time" },
+            isDrawCompleted: { type: "boolean" },
           },
         },
       },

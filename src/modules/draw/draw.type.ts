@@ -80,6 +80,7 @@ export interface CommitteeDrawRecord {
   committeeDrawMinAmount: number;
   committeeDrawDate: Date;
   committeeDrawTime: Date;
+  isDrawCompleted: boolean;
 }
 
 export interface AddCommitteePayload {

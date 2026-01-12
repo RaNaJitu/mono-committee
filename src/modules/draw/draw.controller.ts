@@ -144,11 +144,11 @@ export const UPDATE_LOTTERY_RESULT = async (
     );
     // const data = await updateLotteryResult(authUser, request.body);
     
+    // Here i am updating the user draw paid amount
+    await updateUserWiseDrawPaidAmount(authUser, request.body);
+    console.log("market");
     //Here i am updating the user took the draw
     await updateUserWiseDrawCompleted(authUser, request.body);
-    
-    // Here i am updating the user draw paid amount
-    await getUserWiseDrawPaidAmount(authUser, request.body);
 
     const data = { };
     return reply

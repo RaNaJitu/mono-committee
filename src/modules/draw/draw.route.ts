@@ -85,7 +85,7 @@ const CommitteeRoutes: IRouteOptions<{
       url: "/lottery-result-update",
       handler: UPDATE_LOTTERY_RESULT,
       preHandler: [preUserHandler],
-      schema: userWiseDrawPaidBodySchema,
+      schema: updateUserWiseDrawPaidSchema,
       validatorCompiler: validator({ body: userWiseDrawPaidBodySchema }),
       method: API_METHODS.PATCH,
     },

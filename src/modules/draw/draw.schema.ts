@@ -124,6 +124,7 @@ const userWiseDrawPaidUpdateResponse = {
             type: "object",
             properties: {
               id: { type: "integer" },
+              userId: { type: "integer" },
               name: { type: "string" },
               phoneNo: { type: "string" },
               email: { type: "string" },
@@ -307,7 +308,17 @@ const getLotteryRandomUserResponse = {
     description: "Lottery random user retrieved successfully",
     type: "object",
     properties: {
-      data: { type: "object", properties: { id: { type: "integer" }, name: { type: "string" }, phoneNo: { type: "string" }, email: { type: "string" } } },
+      data: {
+        type: "object",
+        properties:
+        {
+          id: { type: "integer" },
+          name: { type: "string" }, 
+          phoneNo: { type: "string" }, 
+          email: { type: "string" }, 
+          userId: { type: "integer" },
+        }
+      },
     },
   },
 };

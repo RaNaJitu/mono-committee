@@ -211,6 +211,13 @@ async function calculatePaidAmountByUserInternal(
     });
   }
 
+  if (Number(draw.committeeDrawAmount) <= 0) {
+    throw new BadRequestException({
+      message: "Draw amount not updated yet",
+      description: "Draw amount not updated yet",
+    });
+  }
+
   const totalMembers = await committeeReadRepository.countCommitteeMembers(
     committeeDetails.id
   );
@@ -260,6 +267,14 @@ async function calculatePaidAmountByUserInternalForLottery(
     throw new BadRequestException({
       message: "Draw not started yet",
       description: "Draw not started yet",
+    });
+  }
+
+
+  if (Number(draw.committeeDrawAmount) <= 0) {
+    throw new BadRequestException({
+      message: "Draw amount not updated yet",
+      description: "Draw amount not updated yet",
     });
   }
 

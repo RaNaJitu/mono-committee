@@ -26,6 +26,7 @@ import {
 } from "./draw.repository";
 import { committeeReadRepository } from "../committee/committee.repository";
 import { ForbiddenException } from "../../exception/forbidden.exception";
+import { extractTimeParts } from "./helper";
 
 
 const statusFromPrisma: Record<CommitteeStatusEnum, CommitteeStatus> = {
@@ -148,47 +149,47 @@ async function calculateFineAmountInternal(
     return 0;
   }
 
-  const fineStartTimeOnly = new Date(committeeDetails.fineStartDate);
-  const committeeDrawDate  = new Date(draw.committeeDrawDate);
-  const todayOnly = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  );
-  const drawHour = committeeDrawDate.getHours();
-const drawMinute = committeeDrawDate.getMinutes();
-
-const cutoffHour = fineStartTimeOnly.getHours();
-const cutoffMinute = fineStartTimeOnly.getMinutes();
-let fineStartDateTime: Date;
-if (
-  drawHour > cutoffHour ||
-  (drawHour === cutoffHour && drawMinute > cutoffMinute)
-) {
-  // draw time exceeded fine start time → fine starts immediately
-  fineStartDateTime = committeeDrawDate;
-} else {
-  // fine starts at cutoff time on draw date
-  fineStartDateTime = new Date(
-    committeeDrawDate.getFullYear(),
-    committeeDrawDate.getMonth(),
-    committeeDrawDate.getDate(),
-    cutoffHour,
-    cutoffMinute,
-    0
-  );
-}
-if (todayOnly <= fineStartDateTime) {
-  return 0;
-}
-  const diffTime = todayOnly.getTime() - fineStartDateTime.getTime();
-  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
+  const fineStart = new Date(draw.committeeDrawDate);
+  // const [fh, fm, fs] = committeeDetails.fineStartDate.split(":").map(Number);
+  const { h, m, s } = extractTimeParts(committeeDetails.fineStartDate);
+  fineStart.setHours(h, m, s, 0);
   
-  return (diffDays) * committeeDetails.fineAmount;
+  // If today is before fine start → no fine
+  if (today <= fineStart) {
+    return 0;
+  }
 
-  // return 0;
+
+  // Extract cutoff time (HH:MM:SS)
+  const cutoffHour = fineStart.getHours();
+  const cutoffMinute = fineStart.getMinutes();
+  const cutoffSecond = fineStart.getSeconds();
+
+  // First fine day starts immediately after fineStartDate
+  let fineDays = 1;
+
+   // Start counting from fineStartDate's next cutoff
+  let cursor = new Date(fineStart);
+  
+
+
+
+  while (true) {
+    // Move cursor to next cutoff time
+    cursor.setDate(cursor.getDate() + 1);
+    cursor.setHours(cutoffHour, cutoffMinute, cutoffSecond, 0);
+
+    if (today >= cursor) {
+      fineDays++;
+    } else {
+      break;
+    }
+  }
+
+  return fineDays * committeeDetails.fineAmount
+
 }
+
 
 async function calculatePaidAmountByUserInternal(
   committeeDetails: CommitteeDetails,

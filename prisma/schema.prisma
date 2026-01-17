@@ -123,7 +123,7 @@ model CommitteeDraw {
   committeeDrawAmount     Decimal               @db.Decimal(15, 2)
   committeeDrawPaidAmount Decimal               @db.Decimal(15, 2)
   committeeDrawDate       DateTime
-  committeeDrawTime       DateTime
+  committeeDrawTime       DateTime              @db.Time   // it store only time in db  
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
   isDrawCompleted         Boolean               @default(false)

@@ -6,7 +6,7 @@ let redisClient: ReturnType<typeof createClient>;
 // Initialize Redis client based on environment
 const initializeRedisClient = () => {
   const port = Number(process.env.REDIS_PORT) || 6379;
-  const host = process.env.REDIS_URL || 'localhost';
+  const host = process.env.REDIS_HOST || 'localhost';
   const password = process.env.REDIS_PWD;
 
   baseLogger.debug('Initializing Redis client', { 

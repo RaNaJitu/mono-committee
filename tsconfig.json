@@ -2,6 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "NodeNext",
+    "rootDir": "./src",
     "outDir": "./dist",
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
@@ -13,7 +14,7 @@
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noEmit": false, // Ensure this is false
+    "noEmit": false,
     "isolatedModules": true,
     "resolveJsonModule": true,
     "experimentalDecorators": true,
